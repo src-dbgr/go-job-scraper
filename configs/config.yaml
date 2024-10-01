@@ -1,0 +1,20 @@
+mongodb:
+  uri: ${MONGODB_URI}
+  database: ${MONGODB_DATABASE}
+
+scrapers:
+  jobsch:
+    base_url: ${SCRAPER_JOBSCH_BASE_URL}
+    api_key: ${SCRAPER_JOBSCH_API_KEY}
+    schedule: "0 */6 * * *"  # Cron expression for every 6 hours
+
+chatgpt:
+  api_key: ${CHATGPT_API_KEY}
+  api_url: ${CHATGPT_API_URL}
+
+logging:
+  level: "info"
+  file: "logs/job_scraper.log"
+
+prometheus:
+  port: ${PROMETHEUS_PORT}

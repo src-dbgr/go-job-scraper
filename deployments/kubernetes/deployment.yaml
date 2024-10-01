@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-scraper
+  template:
+    metadata:
+      labels:
+        app: job-scraper
+    spec:
+      containers:
+      - name: job-scraper
+        image: your-registry/job-scraper:latest
+        ports:
+        - containerPort: 2112
+        env:
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: uri
+        - name: MONGODB_DATABASE
+          value: jobsdb
+        - name: CHATGPT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: chatgpt-secret
+              key: api-key

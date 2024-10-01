@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-scraper
+spec:
+  selector:
+    app: job-scraper
+  ports:
+    - protocol: TCP
+      port: 2112
+      targetPort: 2112
