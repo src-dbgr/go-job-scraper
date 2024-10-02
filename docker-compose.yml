@@ -8,8 +8,8 @@ services:
     environment:
       - MONGODB_URI=mongodb://mongodb:27017
       - MONGODB_DATABASE=jobsdb
-      - CHATGPT_API_KEY=${CHATGPT_API_KEY}
-      - CHATGPT_API_URL=${CHATGPT_API_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_URL=${OPENAI_API_URL}
     depends_on:
       - mongodb
 

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"job-scraper/internal/config"
+	"job-scraper/internal/processor/openai"
 	"job-scraper/internal/scheduler"
 	"job-scraper/internal/storage"
 
@@ -10,9 +11,10 @@ import (
 )
 
 type App struct {
-	cfg       *config.Config
-	storage   storage.Storage
-	scheduler *scheduler.Scheduler
+	cfg             *config.Config
+	storage         storage.Storage
+	scheduler       *scheduler.Scheduler
+	openaiProcessor *openai.Processor
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -44,10 +46,16 @@ func New(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
+	openaiProcessor, err := initOpenAIProcessor(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &App{
-		cfg:       cfg,
-		storage:   storage,
-		scheduler: sched,
+		cfg:             cfg,
+		storage:         storage,
+		scheduler:       sched,
+		openaiProcessor: openaiProcessor,
 	}, nil
 }
 
@@ -61,4 +69,19 @@ func (a *App) Shutdown(ctx context.Context) {
 		log.Error().Err(err).Msg("Failed to close storage")
 	}
 	a.scheduler.Stop()
+}
+
+func initOpenAIProcessor(cfg *config.Config) (*openai.Processor, error) {
+	openaiConfig := openai.Config{
+		APIURL:      cfg.OpenAI.APIURL,
+		APIKey:      cfg.OpenAI.APIKey,
+		Model:       cfg.OpenAI.Model,
+		Temperature: cfg.OpenAI.Temperature,
+		MaxTokens:   cfg.OpenAI.MaxTokens,
+		TopP:        cfg.OpenAI.TopP,
+		FreqPenalty: cfg.OpenAI.FreqPenalty,
+		PresPenalty: cfg.OpenAI.PresPenalty,
+	}
+	promptRepo := openai.NewFilePromptRepository()
+	return openai.NewProcessor(openaiConfig, promptRepo), nil
 }

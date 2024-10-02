@@ -8,72 +8,104 @@ import (
 	"job-scraper/internal/models"
 	"net/http"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
-type JobschScraper struct {
-	baseURL string
-	apiKey  string
+type JobsChScraper struct {
+	client    HTTPClient
+	baseURL   string
+	maxPages  int
+	pageSize  int
+	parseFunc func([]byte) (*models.Job, error)
 }
 
-func NewJobschScraper(baseURL, apiKey string) *JobschScraper {
-	return &JobschScraper{
-		baseURL: baseURL,
-		apiKey:  apiKey,
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+type Config struct {
+	BaseURL   string
+	MaxPages  int
+	PageSize  int
+	ParseFunc func([]byte) (*models.Job, error)
+}
+
+func NewJobsChScraper(config Config) *JobsChScraper {
+	return &JobsChScraper{
+		client:    &http.Client{Timeout: 10 * time.Second},
+		baseURL:   config.BaseURL,
+		maxPages:  config.MaxPages,
+		pageSize:  config.PageSize,
+		parseFunc: config.ParseFunc,
 	}
 }
 
-func (s *JobschScraper) Scrape(ctx context.Context) ([]models.Job, error) {
-	url := fmt.Sprintf("%s?api_key=%s", s.baseURL, s.apiKey)
+func (s *JobsChScraper) Scrape(ctx context.Context) ([]models.Job, error) {
+	var allJobs []models.Job
 
+	for page := 1; page <= s.maxPages; page++ {
+		select {
+		case <-ctx.Done():
+			return allJobs, ctx.Err()
+		default:
+			jobs, err := s.scrapePage(ctx, page)
+			if err != nil {
+				log.Error().Err(err).Int("page", page).Msg("Error scraping page")
+				continue
+			}
+			allJobs = append(allJobs, jobs...)
+			if len(jobs) < s.pageSize {
+				return allJobs, nil // No more jobs to scrape
+			}
+		}
+	}
+
+	return allJobs, nil
+}
+
+func (s *JobsChScraper) scrapePage(ctx context.Context, page int) ([]models.Job, error) {
+	url := fmt.Sprintf("%s/public/search?page=%d&query=software&rows=%d", s.baseURL, page, s.pageSize)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error making request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	var jobsResponse struct {
-		Jobs []struct {
-			ID          string    `json:"id"`
-			Title       string    `json:"title"`
-			Description string    `json:"description"`
-			Company     string    `json:"company"`
-			Location    string    `json:"location"`
-			PostedAt    time.Time `json:"posted_at"`
-		} `json:"jobs"`
+	var searchResponse struct {
+		Documents []json.RawMessage `json:"documents"`
 	}
-
-	if err := json.Unmarshal(body, &jobsResponse); err != nil {
-		return nil, err
+	if err := json.Unmarshal(body, &searchResponse); err != nil {
+		return nil, fmt.Errorf("error unmarshaling response: %w", err)
 	}
 
 	var jobs []models.Job
-	for _, j := range jobsResponse.Jobs {
-		job := models.Job{
-			URL:         fmt.Sprintf("https://www.jobs.ch/en/vacancies/%s", j.ID),
-			Title:       j.Title,
-			Description: j.Description,
-			Company:     j.Company,
-			Location:    j.Location,
-			PostingDate: j.PostedAt,
-			IsActive:    true,
+	for _, doc := range searchResponse.Documents {
+		job, err := s.parseFunc(doc)
+		if err != nil {
+			log.Warn().Err(err).Msg("Error parsing job")
+			continue
 		}
-		jobs = append(jobs, job)
+		jobs = append(jobs, *job)
 	}
 
 	return jobs, nil
 }
 
-func (s *JobschScraper) Name() string {
+func (s *JobsChScraper) Name() string {
 	return "Jobs.ch"
 }

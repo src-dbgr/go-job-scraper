@@ -26,8 +26,8 @@ A job scraping application written in Go
 
 2. Set up environment variables:
    ```
-   export CHATGPT_API_KEY=your_chatgpt_api_key
-   export CHATGPT_API_URL=your_chatgpt_api_url
+   export OPENAI_API_KEY=your_chatgpt_api_key
+   export OPENAI_API_URL=your_chatgpt_api_url
    export GRAFANA_ADMIN_PASSWORD=your_grafana_password
    ```
 

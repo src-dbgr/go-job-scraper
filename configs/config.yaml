@@ -8,13 +8,20 @@ scrapers:
     api_key: ${SCRAPER_JOBSCH_API_KEY}
     schedule: "0 */6 * * *"  # Cron expression for every 6 hours
 
-chatgpt:
-  api_key: ${CHATGPT_API_KEY}
-  api_url: ${CHATGPT_API_URL}
-
 logging:
   level: "info"
   file: "logs/job_scraper.log"
 
 prometheus:
   port: ${PROMETHEUS_PORT}
+
+openai:
+  api_key: ${OPENAI_API_KEY}
+  api_url: ${OPENAI_API_URL}
+  model: gpt-4o-mini
+  timeout: 300s
+  temperature: 1
+  max_tokens: 500
+  top_p: 1
+  frequency_penalty: 0
+  presence_penalty: 0

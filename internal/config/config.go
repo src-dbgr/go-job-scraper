@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -13,9 +14,16 @@ type Config struct {
 		Database string
 	}
 	Scrapers map[string]map[string]string
-	ChatGPT  struct {
-		APIKey string
-		APIURL string
+	OpenAI   struct {
+		APIKey      string
+		APIURL      string
+		Model       string
+		Timeout     time.Duration
+		Temperature float64
+		MaxTokens   int
+		TopP        float64
+		FreqPenalty float64
+		PresPenalty float64
 	}
 	Logging struct {
 		Level string
@@ -44,9 +52,16 @@ func LoadConfig() (*Config, error) {
 	config.MongoDB.URI = getEnv("MONGODB_URI", viper.GetString("mongodb.uri"))
 	config.MongoDB.Database = getEnv("MONGODB_DATABASE", viper.GetString("mongodb.database"))
 
-	// ChatGPT configuration
-	config.ChatGPT.APIKey = getEnv("CHATGPT_API_KEY", viper.GetString("chatgpt.api_key"))
-	config.ChatGPT.APIURL = getEnv("CHATGPT_API_URL", viper.GetString("chatgpt.api_url"))
+	// OpenAI configuration
+	config.OpenAI.APIKey = getEnv("OPENAI_API_KEY", viper.GetString("openai.api_key"))
+	config.OpenAI.APIURL = getEnv("OPENAI_API_URL", viper.GetString("openai.api_url"))
+	config.OpenAI.Model = getEnv("OPENAI_MODEL", viper.GetString("openai.model"))
+	config.OpenAI.Timeout = viper.GetDuration("openai.timeout")
+	config.OpenAI.Temperature = viper.GetFloat64("openai.temperature")
+	config.OpenAI.MaxTokens = viper.GetInt("openai.max_tokens")
+	config.OpenAI.TopP = viper.GetFloat64("openai.top_p")
+	config.OpenAI.FreqPenalty = viper.GetFloat64("openai.frequency_penalty")
+	config.OpenAI.PresPenalty = viper.GetFloat64("openai.presence_penalty")
 
 	// Logging configuration
 	config.Logging.Level = viper.GetString("logging.level")

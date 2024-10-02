@@ -30,6 +30,8 @@ go.sum
 
 # Log files
 *.log
+output.txt
+prompt.txt
 
 # Temporary files
 *.tmp
@@ -44,3 +46,6 @@ go.sum
 
 # Environment files
 .env
+
+# Misc
+cat_files_recursive.sh
