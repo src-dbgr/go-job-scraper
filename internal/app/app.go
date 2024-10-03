@@ -65,15 +65,20 @@ func New(ctx context.Context) (*App, error) {
 }
 
 func (a *App) Run(ctx context.Context) {
-	go startPrometheusServer(a.cfg.Prometheus.Port)
-	a.scheduler.Start(ctx)
+	log.Info().Msg("Starting application...")
 
 	go func() {
-		log.Info().Msg("Starting API server on :8080")
-		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error().Err(err).Msg("API server failed")
-		}
+		log.Info().Int("port", a.cfg.Prometheus.Port).Msg("Starting Prometheus metrics server")
+		startPrometheusServer(a.cfg.Prometheus.Port)
+		// Beachten Sie, dass wir hier keinen Fehler überprüfen, da die Funktion keinen zurückgibt
 	}()
+
+	go a.scheduler.Start(ctx)
+
+	log.Info().Str("address", a.server.Addr).Msg("Starting API server")
+	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Error().Err(err).Msg("API server failed")
+	}
 }
 
 func (a *App) Shutdown(ctx context.Context) {

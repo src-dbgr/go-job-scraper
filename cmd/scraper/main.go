@@ -24,7 +24,9 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to initialize application")
 	}
 
+	log.Info().Msg("Application initialized, starting...")
 	go application.Run(ctx)
+	log.Info().Msg("Application started successfully")
 
 	waitForShutdown(cancel)
 	application.Shutdown(ctx)
