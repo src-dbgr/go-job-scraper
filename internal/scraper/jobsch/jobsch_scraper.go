@@ -42,9 +42,13 @@ func NewJobsChScraper(config Config) *JobsChScraper {
 }
 
 func (s *JobsChScraper) Scrape(ctx context.Context) ([]models.Job, error) {
+	return s.ScrapePages(ctx, s.maxPages)
+}
+
+func (s *JobsChScraper) ScrapePages(ctx context.Context, pages int) ([]models.Job, error) {
 	var allJobs []models.Job
 
-	for page := 1; page <= s.maxPages; page++ {
+	for page := 1; page <= pages; page++ {
 		select {
 		case <-ctx.Done():
 			return allJobs, ctx.Err()

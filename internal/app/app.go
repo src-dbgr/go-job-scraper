@@ -2,6 +2,10 @@ package app
 
 import (
 	"context"
+	"net/http"
+	"time"
+
+	"job-scraper/internal/api"
 	"job-scraper/internal/config"
 	"job-scraper/internal/processor/openai"
 	"job-scraper/internal/scheduler"
@@ -15,21 +19,15 @@ type App struct {
 	storage         storage.Storage
 	scheduler       *scheduler.Scheduler
 	openaiProcessor *openai.Processor
+	api             *api.API
+	server          *http.Server
 }
 
 func New(ctx context.Context) (*App, error) {
-	cfg, err := config.LoadConfig()
+	cfg, err := loadConfig()
 	if err != nil {
 		return nil, err
 	}
-
-	// Log the loaded configuration
-	log.Info().
-		Str("mongodb_uri", cfg.MongoDB.URI).
-		Str("mongodb_database", cfg.MongoDB.Database).
-		Str("log_level", cfg.Logging.Level).
-		Int("prometheus_port", cfg.Prometheus.Port).
-		Msg("Loaded configuration")
 
 	initLogger(cfg)
 
@@ -51,17 +49,31 @@ func New(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
+	apiHandler := api.NewAPI(scrapers, storage)
+
 	return &App{
 		cfg:             cfg,
 		storage:         storage,
 		scheduler:       sched,
 		openaiProcessor: openaiProcessor,
+		api:             apiHandler,
+		server: &http.Server{
+			Addr:    ":8080",
+			Handler: apiHandler,
+		},
 	}, nil
 }
 
 func (a *App) Run(ctx context.Context) {
 	go startPrometheusServer(a.cfg.Prometheus.Port)
 	a.scheduler.Start(ctx)
+
+	go func() {
+		log.Info().Msg("Starting API server on :8080")
+		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("API server failed")
+		}
+	}()
 }
 
 func (a *App) Shutdown(ctx context.Context) {
@@ -69,6 +81,13 @@ func (a *App) Shutdown(ctx context.Context) {
 		log.Error().Err(err).Msg("Failed to close storage")
 	}
 	a.scheduler.Stop()
+
+	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := a.server.Shutdown(shutdownCtx); err != nil {
+		log.Error().Err(err).Msg("Failed to shutdown API server gracefully")
+	}
 }
 
 func initOpenAIProcessor(cfg *config.Config) (*openai.Processor, error) {

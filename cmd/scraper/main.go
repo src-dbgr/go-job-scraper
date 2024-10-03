@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-	// Load .env file
 	if err := godotenv.Load(); err != nil {
 		log.Warn().Err(err).Msg("Error loading .env file")
 	}
@@ -24,11 +23,11 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize application")
 	}
-	defer application.Shutdown(ctx)
 
 	go application.Run(ctx)
 
 	waitForShutdown(cancel)
+	application.Shutdown(ctx)
 }
 
 func waitForShutdown(cancel context.CancelFunc) {
