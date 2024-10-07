@@ -68,6 +68,7 @@ func (s *JobsChScraper) ScrapePages(ctx context.Context, pages int) ([]models.Jo
 	return allJobs, nil
 }
 
+// TODO impl second api call for id
 func (s *JobsChScraper) scrapePage(ctx context.Context, page int) ([]models.Job, error) {
 	url := fmt.Sprintf("%s/public/search?page=%d&query=software&rows=%d", s.baseURL, page, s.pageSize)
 	log.Info().Int("page", page).Msg("Getting JobsCh Page result")

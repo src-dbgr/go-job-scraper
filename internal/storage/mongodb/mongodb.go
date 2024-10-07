@@ -87,6 +87,31 @@ func (c *Client) GetTotalJobCount(ctx context.Context) (int, error) {
 	return int(count), err
 }
 
+func (c *Client) GetExistingURLs(ctx context.Context) (map[string]bool, error) {
+	cursor, err := c.db.Collection("jobs").Find(ctx, bson.M{}, options.Find().SetProjection(bson.M{"url": 1}))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	urls := make(map[string]bool)
+	for cursor.Next(ctx) {
+		var job struct {
+			URL string `bson:"url"`
+		}
+		if err := cursor.Decode(&job); err != nil {
+			return nil, err
+		}
+		urls[job.URL] = true
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return urls, nil
+}
+
 func (c *Client) Close(ctx context.Context) error {
 	return c.client.Disconnect(ctx)
 }

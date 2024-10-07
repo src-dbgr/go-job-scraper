@@ -53,11 +53,11 @@ func (s *Scheduler) runScraper(ctx context.Context, scraper scraper.Scraper) {
 		return
 	}
 
-	for _, job := range jobs {
-		if err := s.storage.SaveJob(ctx, job); err != nil {
-			log.Error().Err(err).Msg("Failed to save job")
-		}
-	}
+	// for _, job := range jobs {
+	// 	if err := s.storage.SaveJob(ctx, job); err != nil {
+	// 		log.Error().Err(err).Msg("Failed to save job")
+	// 	}
+	// }
 
 	log.Info().Str("scraper", scraper.Name()).Int("jobs", len(jobs)).Msg("Scrape completed")
 }

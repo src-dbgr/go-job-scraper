@@ -10,7 +10,7 @@ import (
 func initScrapers(cfg *config.Config) map[string]scraper.Scraper {
 	jobsChConfig := jobsch.Config{
 		BaseURL:  cfg.Scrapers[scraper.JobsChScraperName]["base_url"],
-		MaxPages: 40,
+		MaxPages: 5,
 		PageSize: 20,
 		ParseFunc: func(data []byte) (*models.Job, error) {
 			// TODO Implement job parsing logic here

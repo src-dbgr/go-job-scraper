@@ -25,7 +25,7 @@ func newJobschScraper(config map[string]string) (Scraper, error) {
 
 	maxPages, err := strconv.Atoi(config["max_pages"])
 	if err != nil {
-		maxPages = 40 // Default value if not specified or invalid
+		maxPages = 10 // Default value if not specified or invalid
 	}
 
 	pageSize, err := strconv.Atoi(config["page_size"])

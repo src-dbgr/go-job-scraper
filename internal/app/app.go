@@ -49,7 +49,7 @@ func New(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
-	apiHandler := api.NewAPI(scrapers, storage)
+	apiHandler := api.NewAPI(scrapers, storage, openaiProcessor)
 
 	return &App{
 		cfg:             cfg,
@@ -70,7 +70,6 @@ func (a *App) Run(ctx context.Context) {
 	go func() {
 		log.Info().Int("port", a.cfg.Prometheus.Port).Msg("Starting Prometheus metrics server")
 		startPrometheusServer(a.cfg.Prometheus.Port)
-		// Beachten Sie, dass wir hier keinen Fehler überprüfen, da die Funktion keinen zurückgibt
 	}()
 
 	go a.scheduler.Start(ctx)

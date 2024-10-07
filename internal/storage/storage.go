@@ -11,5 +11,6 @@ type Storage interface {
 	SaveJob(ctx context.Context, job models.Job) error
 	GetJobCountByCategory(ctx context.Context) (map[string]int, error)
 	GetTotalJobCount(ctx context.Context) (int, error)
+	GetExistingURLs(ctx context.Context) (map[string]bool, error)
 	Close(ctx context.Context) error
 }
