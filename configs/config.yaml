@@ -4,7 +4,7 @@ mongodb:
 
 scrapers:
   jobsch:
-    base_url: ${SCRAPER_JOBSCH_BASE_URL}
+    base_url: https://www.jobs.ch/api/v1
     api_key: ${SCRAPER_JOBSCH_API_KEY}
     schedule: "0 */6 * * *"  # Cron expression for every 6 hours
 

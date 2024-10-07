@@ -81,11 +81,11 @@ func (a *API) handleScrape(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		for _, job := range jobs {
-			if err := a.storage.SaveJob(ctx, job); err != nil {
-				log.Error().Err(err).Str("scraper", scraperName).Msg("Failed to save job")
-			}
-		}
+		// for _, job := range jobs {
+		// 	if err := a.storage.SaveJob(ctx, job); err != nil {
+		// 		log.Error().Err(err).Str("scraper", scraperName).Msg("Failed to save job")
+		// 	}
+		// }
 
 		log.Info().Str("scraper", scraperName).Int("pages", pages).Int("jobs", len(jobs)).Msg("Scraping completed")
 		a.runningScrapers.Store(scraperName, &ScraperStatus{Name: scraperName, Status: "Completed", Jobs: len(jobs)})
