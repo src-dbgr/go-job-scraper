@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"job-scraper/internal/models"
+	"job-scraper/internal/parser"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -17,6 +19,7 @@ type Processor struct {
 	client     HTTPClient
 	config     Config
 	promptRepo PromptRepository
+	jobParser  *parser.JobParser
 }
 
 type HTTPClient interface {
@@ -44,6 +47,7 @@ func NewProcessor(config Config, promptRepo PromptRepository) *Processor {
 		client:     &http.Client{},
 		config:     config,
 		promptRepo: promptRepo,
+		jobParser:  parser.NewJobParser(),
 	}
 }
 
@@ -125,10 +129,22 @@ func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (
 		return nil, fmt.Errorf("no choices in response")
 	}
 
-	var job models.Job
-	if err := json.Unmarshal([]byte(result.Choices[0].Message.Content), &job); err != nil {
+	jsonContent, err := extractJSONFromContent(result.Choices[0].Message.Content)
+	if err != nil {
+		return nil, fmt.Errorf("error extracting JSON from content: %w", err)
+	}
+
+	job, err := p.jobParser.ParseJob([]byte(jsonContent))
+	if err != nil {
 		return nil, fmt.Errorf("error parsing job info: %w", err)
 	}
 
-	return &job, nil
+	return job, nil
+}
+
+func extractJSONFromContent(content string) (string, error) {
+	content = strings.TrimSpace(content)
+	content = strings.TrimPrefix(content, "```json")
+	content = strings.TrimSuffix(content, "```")
+	return strings.TrimSpace(content), nil
 }

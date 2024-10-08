@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"job-scraper/internal/models"
 	"job-scraper/internal/scraper/jobsch"
+	"net/http"
 	"strconv"
 )
 
@@ -33,10 +34,14 @@ func newJobschScraper(config map[string]string) (Scraper, error) {
 		pageSize = 20 // Default value if not specified or invalid
 	}
 
+	client := &http.Client{}
+	fetcher := jobsch.NewJobsChFetcher(client, baseURL)
+
 	scraperConfig := jobsch.Config{
-		BaseURL:  baseURL,
-		MaxPages: maxPages,
-		PageSize: pageSize,
+		BaseURL:    baseURL,
+		MaxPages:   maxPages,
+		PageSize:   pageSize,
+		JobFetcher: fetcher,
 		ParseFunc: func(data []byte) (*models.Job, error) {
 			// TODO: Implement proper parsing logic
 			return &models.Job{}, nil

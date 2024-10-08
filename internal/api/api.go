@@ -79,7 +79,7 @@ func (a *API) handleScrape(w http.ResponseWriter, r *http.Request) {
 
 		var jobs []models.Job
 
-		if paginatedScraper, ok := s.(scraper.PaginatedScraper); ok && pages > 1 {
+		if paginatedScraper, ok := s.(scraper.PaginatedScraper); ok && pages > 0 {
 			jobs, err = paginatedScraper.ScrapePages(ctx, pages)
 		} else {
 			jobs, err = s.Scrape(ctx)
@@ -100,14 +100,27 @@ func (a *API) handleScrape(w http.ResponseWriter, r *http.Request) {
 				if _, exists := existingURLs[job.URL]; !exists {
 					processedJob, err := a.openaiProcessor.Process(ctx, job)
 					if err != nil {
-						log.Error().Err(err).Str("scraper", scraperName).Str("job_url", job.URL).Msg("Failed to process job with OpenAI")
+						log.Error().
+							Err(err).
+							Str("scraper", scraperName).
+							Str("job_url", job.URL).
+							Msg("Failed to process job with OpenAI")
 						continue
 					}
 
 					if err := a.storage.SaveJob(ctx, processedJob); err != nil {
-						log.Error().Err(err).Str("scraper", scraperName).Str("job_url", processedJob.URL).Msg("Failed to save processed job")
+						log.Error().
+							Err(err).
+							Str("scraper", scraperName).
+							Str("job_url", processedJob.URL).
+							Msg("Failed to save processed job")
 					} else {
 						processedJobs++
+						log.Info().
+							Str("scraper", scraperName).
+							Str("job_url", processedJob.URL).
+							Str("job_title", processedJob.Title).
+							Msg("Successfully processed and saved job")
 					}
 				} else {
 					log.Info().Str("scraper", scraperName).Str("job_url", job.URL).Msg("Job already exists, skipping processing")
@@ -115,7 +128,12 @@ func (a *API) handleScrape(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		log.Info().Str("scraper", scraperName).Int("pages", pages).Int("total_jobs", len(jobs)).Int("processed_jobs", processedJobs).Msg("Scraping and processing completed")
+		log.Info().
+			Str("scraper", scraperName).
+			Int("pages", pages).
+			Int("total_jobs", len(jobs)).
+			Int("processed_jobs", processedJobs).
+			Msg("Scraping and processing completed")
 		a.runningScrapers.Store(scraperName, &ScraperStatus{Name: scraperName, Status: "Completed", Jobs: processedJobs})
 	}()
 
