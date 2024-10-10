@@ -1,19 +1,15 @@
 package api
 
 import (
-	"context"
-	"encoding/json"
 	"net/http"
-	"strconv"
 	"sync"
 
-	"job-scraper/internal/models"
 	"job-scraper/internal/processor/openai"
 	"job-scraper/internal/scraper"
+	"job-scraper/internal/services"
 	"job-scraper/internal/storage"
 
 	"github.com/gorilla/mux"
-	"github.com/rs/zerolog/log"
 )
 
 type API struct {
@@ -22,6 +18,7 @@ type API struct {
 	storage         storage.Storage
 	openaiProcessor *openai.Processor
 	runningScrapers *sync.Map
+	jobStatsService *services.JobStatisticsService
 }
 
 type ScraperStatus struct {
@@ -30,129 +27,55 @@ type ScraperStatus struct {
 	Jobs   int    `json:"jobs"`
 }
 
-func NewAPI(scrapers map[string]scraper.Scraper, storage storage.Storage, openaiProcessor *openai.Processor) *API {
+func NewAPI(scrapers map[string]scraper.Scraper, storage storage.Storage, openaiProcessor *openai.Processor, jobStatsService *services.JobStatisticsService) *API {
 	api := &API{
 		router:          mux.NewRouter(),
 		scrapers:        scrapers,
 		storage:         storage,
 		openaiProcessor: openaiProcessor,
 		runningScrapers: &sync.Map{},
+		jobStatsService: jobStatsService,
 	}
 	api.setupRoutes()
 	return api
 }
 
 func (a *API) setupRoutes() {
+	// Scraper routes
 	a.router.HandleFunc("/api/scrape/{scraper}", a.handleScrape).Methods("POST")
 	a.router.HandleFunc("/api/scrapers/status", a.handleScrapersStatus).Methods("GET")
-}
 
-func (a *API) handleScrape(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	scraperName := vars["scraper"]
+	// Job routes
+	a.router.HandleFunc("/api/jobs", a.getJobs).Methods("GET")
+	a.router.HandleFunc("/api/jobs/{id}", a.getJobByID).Methods("GET")
+	a.router.HandleFunc("/api/jobs/urls", a.getJobUrls).Methods("GET")
 
-	s, ok := a.scrapers[scraperName]
-	if !ok {
-		http.Error(w, "Scraper not found", http.StatusNotFound)
-		return
-	}
-
-	pages := 1 // Default value
-	if pagesStr := r.URL.Query().Get("pages"); pagesStr != "" {
-		if p, err := strconv.Atoi(pagesStr); err == nil && p > 0 {
-			pages = p
-		}
-	}
-
-	go func() {
-		a.runningScrapers.Store(scraperName, &ScraperStatus{Name: scraperName, Status: "Running", Jobs: 0})
-		defer a.runningScrapers.Delete(scraperName)
-
-		ctx := context.Background()
-
-		existingURLs, err := a.storage.GetExistingURLs(ctx)
-		if err != nil {
-			log.Error().Err(err).Str("scraper", scraperName).Msg("Failed to fetch existing URLs")
-			a.runningScrapers.Store(scraperName, &ScraperStatus{Name: scraperName, Status: "Failed", Jobs: 0})
-			return
-		}
-
-		var jobs []models.Job
-
-		if paginatedScraper, ok := s.(scraper.PaginatedScraper); ok && pages > 0 {
-			jobs, err = paginatedScraper.ScrapePages(ctx, pages)
-		} else {
-			jobs, err = s.Scrape(ctx)
-		}
-
-		if err != nil {
-			log.Error().Err(err).Str("scraper", scraperName).Int("pages", pages).Msg("Failed to scrape jobs")
-			a.runningScrapers.Store(scraperName, &ScraperStatus{Name: scraperName, Status: "Failed", Jobs: 0})
-			return
-		}
-
-		processedJobs := 0
-		for _, job := range jobs {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				if _, exists := existingURLs[job.URL]; !exists {
-					processedJob, err := a.openaiProcessor.Process(ctx, job)
-					if err != nil {
-						log.Error().
-							Err(err).
-							Str("scraper", scraperName).
-							Str("job_url", job.URL).
-							Msg("Failed to process job with OpenAI")
-						continue
-					}
-
-					if err := a.storage.SaveJob(ctx, processedJob); err != nil {
-						log.Error().
-							Err(err).
-							Str("scraper", scraperName).
-							Str("job_url", processedJob.URL).
-							Msg("Failed to save processed job")
-					} else {
-						processedJobs++
-						log.Info().
-							Str("scraper", scraperName).
-							Str("job_url", processedJob.URL).
-							Str("job_title", processedJob.Title).
-							Msg("Successfully processed and saved job")
-					}
-				} else {
-					log.Info().Str("scraper", scraperName).Str("job_url", job.URL).Msg("Job already exists, skipping processing")
-				}
-			}
-		}
-
-		log.Info().
-			Str("scraper", scraperName).
-			Int("pages", pages).
-			Int("total_jobs", len(jobs)).
-			Int("processed_jobs", processedJobs).
-			Msg("Scraping and processing completed")
-		a.runningScrapers.Store(scraperName, &ScraperStatus{Name: scraperName, Status: "Completed", Jobs: processedJobs})
-	}()
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Scraping job started", "scraper": scraperName, "pages": strconv.Itoa(pages)})
-}
-
-func (a *API) handleScrapersStatus(w http.ResponseWriter, r *http.Request) {
-	statuses := []ScraperStatus{}
-	a.runningScrapers.Range(func(key, value interface{}) bool {
-		if status, ok := value.(*ScraperStatus); ok {
-			statuses = append(statuses, *status)
-		}
-		return true
-	})
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(statuses)
+	// Statistics routes
+	a.router.HandleFunc("/api/stats/top-job-categories", a.getTopJobCategories).Methods("GET")
+	a.router.HandleFunc("/api/stats/avg-experience-by-category", a.getAvgExperienceByCategory).Methods("GET")
+	a.router.HandleFunc("/api/stats/remote-vs-onsite", a.getRemoteVsOnsite).Methods("GET")
+	a.router.HandleFunc("/api/stats/top-skills", a.getTopSkills).Methods("GET")
+	a.router.HandleFunc("/api/stats/top-optional-skills", a.getTopOptionalSkills).Methods("GET")
+	a.router.HandleFunc("/api/stats/benefits-by-company-size", a.getBenefitsByCompanySize).Methods("GET")
+	a.router.HandleFunc("/api/stats/avg-salary-by-education", a.getAvgSalaryByEducation).Methods("GET")
+	a.router.HandleFunc("/api/stats/job-postings-trend", a.getJobPostingsTrend).Methods("GET")
+	a.router.HandleFunc("/api/stats/languages-by-location", a.getLanguagesByLocation).Methods("GET")
+	a.router.HandleFunc("/api/stats/employment-types", a.getEmploymentTypes).Methods("GET")
+	a.router.HandleFunc("/api/stats/remote-work-by-category", a.getRemoteWorkByCategory).Methods("GET")
+	a.router.HandleFunc("/api/stats/technology-trends", a.getTechnologyTrends).Methods("GET")
+	a.router.HandleFunc("/api/stats/job-requirements-by-location", a.getJobRequirementsByLocation).Methods("GET")
+	a.router.HandleFunc("/api/stats/remote-vs-onsite-by-industry", a.getRemoteVsOnsiteByIndustry).Methods("GET")
+	a.router.HandleFunc("/api/stats/job-categories-by-company-size", a.getJobCategoriesByCompanySize).Methods("GET")
+	a.router.HandleFunc("/api/stats/skills-by-experience-level", a.getSkillsByExperienceLevel).Methods("GET")
+	a.router.HandleFunc("/api/stats/companies-by-size", a.getCompaniesBySize).Methods("GET")
+	a.router.HandleFunc("/api/stats/companies-by-size/{sizeType}", a.getCompaniesBySizeAndType).Methods("GET")
+	a.router.HandleFunc("/api/stats/company-size-distribution", a.getCompanySizeDistribution).Methods("GET")
+	a.router.HandleFunc("/api/stats/job-postings-per-day", a.getJobPostingsPerDay).Methods("GET")
+	a.router.HandleFunc("/api/stats/job-postings-per-month", a.getJobPostingsPerMonth).Methods("GET")
+	a.router.HandleFunc("/api/stats/job-postings-per-company", a.getJobPostingsPerCompany).Methods("GET")
+	a.router.HandleFunc("/api/stats/mustskills/{skill}", a.getMustSkillFrequencyPerDay).Methods("GET")
+	a.router.HandleFunc("/api/stats/optionalskills/{skill}", a.getOptionalSkillFrequencyPerDay).Methods("GET")
+	a.router.HandleFunc("/api/stats/job-categories-counts", a.getJobCategoryCounts).Methods("GET")
 }
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {

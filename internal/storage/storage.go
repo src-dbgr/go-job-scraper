@@ -3,6 +3,9 @@ package storage
 import (
 	"context"
 	"job-scraper/internal/models"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Storage interface {
@@ -13,4 +16,5 @@ type Storage interface {
 	GetTotalJobCount(ctx context.Context) (int, error)
 	GetExistingURLs(ctx context.Context) (map[string]bool, error)
 	Close(ctx context.Context) error
+	AggregateJobs(ctx context.Context, pipeline mongo.Pipeline) ([]bson.M, error)
 }

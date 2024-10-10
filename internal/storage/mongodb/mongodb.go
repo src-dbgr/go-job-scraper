@@ -115,3 +115,17 @@ func (c *Client) GetExistingURLs(ctx context.Context) (map[string]bool, error) {
 func (c *Client) Close(ctx context.Context) error {
 	return c.client.Disconnect(ctx)
 }
+
+func (c *Client) AggregateJobs(ctx context.Context, pipeline mongo.Pipeline) ([]bson.M, error) {
+	cursor, err := c.db.Collection("jobs").Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var results []bson.M
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
+}

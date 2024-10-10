@@ -9,6 +9,7 @@ import (
 	"job-scraper/internal/config"
 	"job-scraper/internal/processor/openai"
 	"job-scraper/internal/scheduler"
+	"job-scraper/internal/services"
 	"job-scraper/internal/storage"
 
 	"github.com/rs/zerolog/log"
@@ -49,7 +50,9 @@ func New(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
-	apiHandler := api.NewAPI(scrapers, storage, openaiProcessor)
+	jobStatsService := services.NewJobStatisticsService(storage)
+
+	apiHandler := api.NewAPI(scrapers, storage, openaiProcessor, jobStatsService)
 
 	return &App{
 		cfg:             cfg,
