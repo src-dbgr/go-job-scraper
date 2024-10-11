@@ -431,7 +431,12 @@ func (s *JobStatisticsService) GetJobPostingsPerDay() ([]bson.M, error) {
 			}}}},
 			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
 		}}},
-		{{Key: "$sort", Value: bson.D{{Key: "_id", Value: 1}}}},
+		{{Key: "$project", Value: bson.D{
+			{Key: "day", Value: "$_id"},
+			{Key: "count", Value: 1},
+			{Key: "_id", Value: 0},
+		}}},
+		{{Key: "$sort", Value: bson.D{{Key: "day", Value: 1}}}},
 	}
 
 	return s.aggregateResults(ctx, pipeline)
@@ -449,7 +454,12 @@ func (s *JobStatisticsService) GetJobPostingsPerMonth() ([]bson.M, error) {
 			}}}},
 			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
 		}}},
-		{{Key: "$sort", Value: bson.D{{Key: "_id", Value: 1}}}},
+		{{Key: "$project", Value: bson.D{
+			{Key: "month", Value: "$_id"},
+			{Key: "count", Value: 1},
+			{Key: "_id", Value: 0},
+		}}},
+		{{Key: "$sort", Value: bson.D{{Key: "month", Value: 1}}}},
 	}
 
 	return s.aggregateResults(ctx, pipeline)
@@ -492,7 +502,6 @@ func (s *JobStatisticsService) GetOptionalSkillFrequencyPerDay(skill string) ([]
 func (s *JobStatisticsService) getSkillFrequencyPerDay(skill, skillField string) ([]bson.M, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	pipeline := mongo.Pipeline{
 		{{
 			Key: "$match",
@@ -517,9 +526,16 @@ func (s *JobStatisticsService) getSkillFrequencyPerDay(skill, skillField string)
 				{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
 			},
 		}},
-		{{Key: "$sort", Value: bson.D{{Key: "_id", Value: 1}}}},
+		{{
+			Key: "$project",
+			Value: bson.D{
+				{Key: "_id", Value: 0},
+				{Key: "day", Value: "$_id"},
+				{Key: "count", Value: 1},
+			},
+		}},
+		{{Key: "$sort", Value: bson.D{{Key: "day", Value: 1}}}},
 	}
-
 	return s.aggregateResults(ctx, pipeline)
 }
 
