@@ -41,41 +41,51 @@ func NewAPI(scrapers map[string]scraper.Scraper, storage storage.Storage, openai
 }
 
 func (a *API) setupRoutes() {
+	// Create a subrouter for v1
+	v1Router := a.router.PathPrefix("/api/v1").Subrouter()
+
+	// Middleware that sets the api version
+	v1Router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			VersionMiddleware(next.ServeHTTP, "v1")(w, r)
+		})
+	})
+
 	// Scraper routes
-	a.router.HandleFunc("/api/scrape/{scraper}", a.handleScrape).Methods("POST")
-	a.router.HandleFunc("/api/scrapers/status", a.handleScrapersStatus).Methods("GET")
+	v1Router.HandleFunc("/scrape/{scraper}", a.handleScrape).Methods("POST")
+	v1Router.HandleFunc("/scrapers/status", a.handleScrapersStatus).Methods("GET")
 
 	// Job routes
-	a.router.HandleFunc("/api/jobs", a.getJobs).Methods("GET")
-	a.router.HandleFunc("/api/jobs/{id}", a.getJobByID).Methods("GET")
-	a.router.HandleFunc("/api/jobs/urls", a.getJobUrls).Methods("GET")
+	v1Router.HandleFunc("/jobs", a.getJobs).Methods("GET")
+	v1Router.HandleFunc("/jobs/{id}", a.getJobByID).Methods("GET")
+	v1Router.HandleFunc("/jobs/urls", a.getJobUrls).Methods("GET")
 
 	// Statistics routes
-	a.router.HandleFunc("/api/stats/top-job-categories", a.getTopJobCategories).Methods("GET")
-	a.router.HandleFunc("/api/stats/avg-experience-by-category", a.getAvgExperienceByCategory).Methods("GET")
-	a.router.HandleFunc("/api/stats/remote-vs-onsite", a.getRemoteVsOnsite).Methods("GET")
-	a.router.HandleFunc("/api/stats/top-skills", a.getTopSkills).Methods("GET")
-	a.router.HandleFunc("/api/stats/top-optional-skills", a.getTopOptionalSkills).Methods("GET")
-	a.router.HandleFunc("/api/stats/benefits-by-company-size", a.getBenefitsByCompanySize).Methods("GET")
-	a.router.HandleFunc("/api/stats/avg-salary-by-education", a.getAvgSalaryByEducation).Methods("GET")
-	a.router.HandleFunc("/api/stats/job-postings-trend", a.getJobPostingsTrend).Methods("GET")
-	a.router.HandleFunc("/api/stats/languages-by-location", a.getLanguagesByLocation).Methods("GET")
-	a.router.HandleFunc("/api/stats/employment-types", a.getEmploymentTypes).Methods("GET")
-	a.router.HandleFunc("/api/stats/remote-work-by-category", a.getRemoteWorkByCategory).Methods("GET")
-	a.router.HandleFunc("/api/stats/technology-trends", a.getTechnologyTrends).Methods("GET")
-	a.router.HandleFunc("/api/stats/job-requirements-by-location", a.getJobRequirementsByLocation).Methods("GET")
-	a.router.HandleFunc("/api/stats/remote-vs-onsite-by-industry", a.getRemoteVsOnsiteByIndustry).Methods("GET")
-	a.router.HandleFunc("/api/stats/job-categories-by-company-size", a.getJobCategoriesByCompanySize).Methods("GET")
-	a.router.HandleFunc("/api/stats/skills-by-experience-level", a.getSkillsByExperienceLevel).Methods("GET")
-	a.router.HandleFunc("/api/stats/companies-by-size", a.getCompaniesBySize).Methods("GET")
-	a.router.HandleFunc("/api/stats/companies-by-size/{sizeType}", a.getCompaniesBySizeAndType).Methods("GET")
-	a.router.HandleFunc("/api/stats/company-size-distribution", a.getCompanySizeDistribution).Methods("GET")
-	a.router.HandleFunc("/api/stats/job-postings-per-day", a.getJobPostingsPerDay).Methods("GET")
-	a.router.HandleFunc("/api/stats/job-postings-per-month", a.getJobPostingsPerMonth).Methods("GET")
-	a.router.HandleFunc("/api/stats/job-postings-per-company", a.getJobPostingsPerCompany).Methods("GET")
-	a.router.HandleFunc("/api/stats/mustskills/{skill}", a.getMustSkillFrequencyPerDay).Methods("GET")
-	a.router.HandleFunc("/api/stats/optionalskills/{skill}", a.getOptionalSkillFrequencyPerDay).Methods("GET")
-	a.router.HandleFunc("/api/stats/job-categories-counts", a.getJobCategoryCounts).Methods("GET")
+	v1Router.HandleFunc("/stats/top-job-categories", a.getTopJobCategories).Methods("GET")
+	v1Router.HandleFunc("/stats/avg-experience-by-category", a.getAvgExperienceByCategory).Methods("GET")
+	v1Router.HandleFunc("/stats/remote-vs-onsite", a.getRemoteVsOnsite).Methods("GET")
+	v1Router.HandleFunc("/stats/top-skills", a.getTopSkills).Methods("GET")
+	v1Router.HandleFunc("/stats/top-optional-skills", a.getTopOptionalSkills).Methods("GET")
+	v1Router.HandleFunc("/stats/benefits-by-company-size", a.getBenefitsByCompanySize).Methods("GET")
+	v1Router.HandleFunc("/stats/avg-salary-by-education", a.getAvgSalaryByEducation).Methods("GET")
+	v1Router.HandleFunc("/stats/job-postings-trend", a.getJobPostingsTrend).Methods("GET")
+	v1Router.HandleFunc("/stats/languages-by-location", a.getLanguagesByLocation).Methods("GET")
+	v1Router.HandleFunc("/stats/employment-types", a.getEmploymentTypes).Methods("GET")
+	v1Router.HandleFunc("/stats/remote-work-by-category", a.getRemoteWorkByCategory).Methods("GET")
+	v1Router.HandleFunc("/stats/technology-trends", a.getTechnologyTrends).Methods("GET")
+	v1Router.HandleFunc("/stats/job-requirements-by-location", a.getJobRequirementsByLocation).Methods("GET")
+	v1Router.HandleFunc("/stats/remote-vs-onsite-by-industry", a.getRemoteVsOnsiteByIndustry).Methods("GET")
+	v1Router.HandleFunc("/stats/job-categories-by-company-size", a.getJobCategoriesByCompanySize).Methods("GET")
+	v1Router.HandleFunc("/stats/skills-by-experience-level", a.getSkillsByExperienceLevel).Methods("GET")
+	v1Router.HandleFunc("/stats/companies-by-size", a.getCompaniesBySize).Methods("GET")
+	v1Router.HandleFunc("/stats/companies-by-size/{sizeType}", a.getCompaniesBySizeAndType).Methods("GET")
+	v1Router.HandleFunc("/stats/company-size-distribution", a.getCompanySizeDistribution).Methods("GET")
+	v1Router.HandleFunc("/stats/job-postings-per-day", a.getJobPostingsPerDay).Methods("GET")
+	v1Router.HandleFunc("/stats/job-postings-per-month", a.getJobPostingsPerMonth).Methods("GET")
+	v1Router.HandleFunc("/stats/job-postings-per-company", a.getJobPostingsPerCompany).Methods("GET")
+	v1Router.HandleFunc("/stats/mustskills/{skill}", a.getMustSkillFrequencyPerDay).Methods("GET")
+	v1Router.HandleFunc("/stats/optionalskills/{skill}", a.getOptionalSkillFrequencyPerDay).Methods("GET")
+	v1Router.HandleFunc("/stats/job-categories-counts", a.getJobCategoryCounts).Methods("GET")
 }
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
