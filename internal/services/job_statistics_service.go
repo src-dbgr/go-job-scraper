@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"time"
 
 	"job-scraper/internal/storage"
@@ -353,6 +355,12 @@ func (s *JobStatisticsService) GetCompaniesBySize() ([]bson.M, error) {
 			{Key: "jobCount", Value: bson.D{{Key: "$sum", Value: 1}}},
 		}}},
 		{{Key: "$sort", Value: bson.D{{Key: "companySize", Value: -1}}}},
+		{{Key: "$project", Value: bson.D{
+			{Key: "company", Value: "$_id"},
+			{Key: "companySize", Value: 1},
+			{Key: "jobCount", Value: 1},
+			{Key: "_id", Value: 0},
+		}}},
 	}
 
 	return s.aggregateResults(ctx, pipeline)
@@ -385,10 +393,17 @@ func (s *JobStatisticsService) GetCompaniesBySizeAndType(sizeType string) ([]bso
 		{{Key: "$group", Value: bson.D{
 			{Key: "_id", Value: "$_id.company"},
 			{Key: "companySize", Value: bson.D{{Key: "$first", Value: "$companySize"}}},
-			{Key: "locations", Value: bson.D{{Key: "$push", Value: "$_id.location"}}},
+			{Key: "location", Value: bson.D{{Key: "$push", Value: "$_id.location"}}},
 			{Key: "totalJobs", Value: bson.D{{Key: "$sum", Value: "$locationCount"}}},
 		}}},
 		{{Key: "$sort", Value: bson.D{{Key: "companySize", Value: -1}}}},
+		{{Key: "$project", Value: bson.D{
+			{Key: "company", Value: "$_id"},
+			{Key: "companySize", Value: 1},
+			{Key: "location", Value: 1},
+			{Key: "totalJobs", Value: 1},
+			{Key: "_id", Value: 0},
+		}}},
 	}
 
 	return s.aggregateResults(ctx, pipeline)
@@ -399,24 +414,50 @@ func (s *JobStatisticsService) GetCompanySizeDistribution() ([]bson.M, error) {
 	defer cancel()
 
 	pipeline := mongo.Pipeline{
-		{{Key: "$group", Value: bson.D{
-			{Key: "_id", Value: bson.D{{Key: "$switch", Value: bson.D{
-				{Key: "branches", Value: bson.A{
-					bson.D{{Key: "case", Value: bson.D{{Key: "$lte", Value: bson.A{"$companySize", 50}}}}, {Key: "then", Value: "Small"}},
-					bson.D{{Key: "case", Value: bson.D{{Key: "$lte", Value: bson.A{"$companySize", 250}}}}, {Key: "then", Value: "Medium"}},
-				}},
-				{Key: "default", Value: "Large"},
-			}}}},
-			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+		{{Key: "$facet", Value: bson.D{
+			{Key: "sizes", Value: bson.A{
+				bson.D{{Key: "$bucket", Value: bson.D{
+					{Key: "groupBy", Value: "$companySize"},
+					{Key: "boundaries", Value: bson.A{0, 51, 251, math.MaxInt64}},
+					{Key: "default", Value: "Unknown"},
+					{Key: "output", Value: bson.D{
+						{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+					}},
+				}}},
+			}},
+			{Key: "total", Value: bson.A{
+				bson.D{{Key: "$count", Value: "count"}},
+			}},
 		}}},
 		{{Key: "$project", Value: bson.D{
-			{Key: "sizeCategory", Value: "$_id"},
-			{Key: "count", Value: 1},
-			{Key: "_id", Value: 0},
+			{Key: "sizes", Value: bson.D{{Key: "$map", Value: bson.D{
+				{Key: "input", Value: "$sizes"},
+				{Key: "as", Value: "size"},
+				{Key: "in", Value: bson.D{
+					{Key: "sizeCategory", Value: bson.D{{Key: "$switch", Value: bson.D{
+						{Key: "branches", Value: bson.A{
+							bson.D{{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{"$$size._id", "Unknown"}}}}, {Key: "then", Value: "Unknown"}},
+							bson.D{{Key: "case", Value: bson.D{{Key: "$lte", Value: bson.A{"$$size._id", 50}}}}, {Key: "then", Value: "Small"}},
+							bson.D{{Key: "case", Value: bson.D{{Key: "$lte", Value: bson.A{"$$size._id", 250}}}}, {Key: "then", Value: "Medium"}},
+						}},
+						{Key: "default", Value: "Large"},
+					}}}},
+					{Key: "count", Value: "$$size.count"},
+					{Key: "percentage", Value: bson.D{{Key: "$divide", Value: bson.A{"$$size.count", bson.D{{Key: "$arrayElemAt", Value: bson.A{"$total.count", 0}}}}}}},
+				}},
+			}}}},
 		}}},
+		{{Key: "$unwind", Value: "$sizes"}},
+		{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$sizes"}}}},
+		{{Key: "$sort", Value: bson.D{{Key: "sizeCategory", Value: 1}}}},
 	}
 
-	return s.aggregateResults(ctx, pipeline)
+	results, err := s.aggregateResults(ctx, pipeline)
+	if err != nil {
+		return nil, fmt.Errorf("error executing aggregation: %w", err)
+	}
+
+	return results, nil
 }
 
 func (s *JobStatisticsService) GetJobPostingsPerDay() ([]bson.M, error) {

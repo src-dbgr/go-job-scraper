@@ -13,7 +13,7 @@ func (a *API) getJobs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit <= 0 {
+	if limit < 0 {
 		limit = 50 // Default limit
 	}
 
@@ -24,7 +24,7 @@ func (a *API) getJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(jobs) > limit {
+	if len(jobs) > limit && limit > 0 {
 		jobs = jobs[:limit]
 	}
 

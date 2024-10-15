@@ -14,7 +14,7 @@ GRAFANA_URL=${GRAFANA_URL:-http://localhost:3000}
 echo "Testing API connection and fetching all datasources..."
 all_datasources=$(curl -s -H "Authorization: Bearer $API_KEY" "${GRAFANA_URL}/api/datasources")
 echo "All datasources:"
-echo "$all_datasources" | jq '.'
+# echo "$all_datasources" | jq '.'
 
 # Function to create a data source
 create_datasource() {
@@ -75,6 +75,7 @@ read -p "Enter your choice (1 or 2): " choice
 
 # List of datasource names and endpoints
 datasources="
+jobs:jobs
 avg salary by education:stats/avg-salary-by-education
 avg-experience-by-category:stats/avg-experience-by-category
 benefits by company size:stats/benefits-by-company-size
