@@ -3,30 +3,40 @@ package mongodb
 import (
 	"context"
 	"job-scraper/internal/models"
-	"job-scraper/internal/storage"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// JobRepository definiert das Interface für Datenbankoperationen
+type JobRepository interface {
+	SaveJob(ctx context.Context, job models.Job) error
+	GetJobByID(ctx context.Context, id string) (*models.Job, error)
+	GetJobs(ctx context.Context) ([]models.Job, error)
+	GetJobCountByCategory(ctx context.Context) (map[string]int, error)
+	GetTotalJobCount(ctx context.Context) (int, error)
+	GetExistingURLs(ctx context.Context) (map[string]bool, error)
+	AggregateJobs(ctx context.Context, pipeline mongo.Pipeline) ([]bson.M, error)
+}
+
 type Client struct {
 	client *mongo.Client
 	db     *mongo.Database
 }
 
-func NewClient(ctx context.Context, uri, dbName string) (storage.Storage, error) {
+func NewClient(ctx context.Context, uri, dbName string) (*Client, error) {
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
 		return nil, err
 	}
 
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, err
-	}
-
 	db := client.Database(dbName)
-	return &Client{client: client, db: db}, nil
+
+	return &Client{
+		client: client,
+		db:     db,
+	}, nil
 }
 
 func (c *Client) GetJobs(ctx context.Context) ([]models.Job, error) {
