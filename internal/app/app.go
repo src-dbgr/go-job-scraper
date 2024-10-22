@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -61,7 +62,7 @@ func New(ctx context.Context) (*App, error) {
 		openaiProcessor: openaiProcessor,
 		api:             apiHandler,
 		server: &http.Server{
-			Addr:    ":8080",
+			Addr:    fmt.Sprintf(":%d", cfg.API.Port), // Use configured port
 			Handler: apiHandler,
 		},
 	}, nil
@@ -77,7 +78,8 @@ func (a *App) Run(ctx context.Context) {
 
 	go a.scheduler.Start(ctx)
 
-	log.Info().Str("address", a.server.Addr).Msg("Starting API server")
+	addr := fmt.Sprintf(":%d", a.cfg.API.Port)
+	log.Info().Str("address", addr).Msg("Starting API server")
 	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error().Err(err).Msg("API server failed")
 	}

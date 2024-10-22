@@ -9,6 +9,9 @@ import (
 )
 
 type Config struct {
+	API struct {
+		Port int
+	}
 	MongoDB struct {
 		URI      string
 		Database string
@@ -35,8 +38,13 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
+	// Check for config path in environment
+	if configPath := os.Getenv("JOBSCRAPER_CONFIG_PATH"); configPath != "" {
+		viper.AddConfigPath(configPath)
+	}
+
 	viper.SetConfigName("config")
-	viper.AddConfigPath("./configs")
+	viper.AddConfigPath("./configs") // default path
 	viper.SetConfigType("yaml")
 
 	viper.AutomaticEnv()
@@ -47,6 +55,14 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{}
+
+	// API configuration
+	apiPort, err := strconv.Atoi(getEnv("API_PORT", viper.GetString("api.port")))
+	if err != nil {
+		config.API.Port = 8080 // Default port
+	} else {
+		config.API.Port = apiPort
+	}
 
 	// MongoDB configuration
 	config.MongoDB.URI = getEnv("MONGODB_URI", viper.GetString("mongodb.uri"))

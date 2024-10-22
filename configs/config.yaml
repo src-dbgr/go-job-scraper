@@ -1,3 +1,6 @@
+api:
+  port: 8080  # Default port, overwritten by env var
+
 mongodb:
   uri: ${MONGODB_URI}
   database: ${MONGODB_DATABASE}
