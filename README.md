@@ -42,6 +42,10 @@ A job scraping application written in Go
    - Grafana: http://localhost:3000
 
 ## Running Tests
+   - Integration Test
+   ```
+   go test -v -tags=integration ./tests/integration 
+   ```
 
 ```
 make test
