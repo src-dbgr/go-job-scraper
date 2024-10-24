@@ -8,5 +8,11 @@ import (
 )
 
 func initStorage(ctx context.Context, cfg *config.Config) (storage.Storage, error) {
-	return mongodb.NewClient(ctx, cfg.MongoDB.URI, cfg.MongoDB.Database)
+	baseStorage, err := mongodb.NewClient(ctx, cfg.MongoDB.URI, cfg.MongoDB.Database)
+	if err != nil {
+		return nil, err
+	}
+
+	// wrape the base storage to the metricsdecorator
+	return mongodb.NewMetricsDecorator(baseStorage), nil
 }

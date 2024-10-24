@@ -39,6 +39,10 @@ func NewClient(ctx context.Context, uri, dbName string) (*Client, error) {
 	}, nil
 }
 
+func (c *Client) GetMongoClient() *mongo.Client {
+	return c.client
+}
+
 func (c *Client) GetJobs(ctx context.Context) ([]models.Job, error) {
 	var jobs []models.Job
 	cursor, err := c.db.Collection("jobs").Find(ctx, bson.M{})

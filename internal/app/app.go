@@ -39,7 +39,7 @@ func New(ctx context.Context) (*App, error) {
 	}
 
 	scrapers := initScrapers(cfg)
-	initJobCollector(storage)
+	initMetrics(storage)
 
 	sched, err := initScheduler(ctx, storage, scrapers, cfg)
 	if err != nil {

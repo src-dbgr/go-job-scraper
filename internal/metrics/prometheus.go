@@ -1,36 +1,17 @@
 package metrics
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+	// Re-export the metrics from domains
+	"job-scraper/internal/metrics/domains"
 )
 
 var (
-	ScrapedJobs = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "scraped_jobs_total",
-		Help: "The total number of scraped jobs",
-	})
-
-	ProcessedJobs = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "processed_jobs_total",
-		Help: "The total number of processed jobs",
-	})
-
-	ScraperDuration = promauto.NewHistogram(prometheus.HistogramOpts{
-		Name:    "scraper_duration_seconds",
-		Help:    "Duration of scraper execution",
-		Buckets: prometheus.DefBuckets,
-	})
+	ScrapedJobs     = domains.ScrapedJobs
+	ProcessedJobs   = domains.ProcessedJobs
+	ScraperDuration = domains.ScraperDuration
 )
 
-func RecordScrapedJob() {
-	ScrapedJobs.Inc()
-}
-
-func RecordProcessedJob() {
-	ProcessedJobs.Inc()
-}
-
-func RecordScraperDuration(duration float64) {
-	ScraperDuration.Observe(duration)
-}
+// Re-export the helper functions
+func RecordScrapedJob()               { domains.RecordScrapedJob() }
+func RecordProcessedJob()             { domains.RecordProcessedJob() }
+func RecordScraperDuration(d float64) { domains.RecordScraperDuration(d) }

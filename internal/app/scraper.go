@@ -19,13 +19,16 @@ func initScrapers(cfg *config.Config) map[string]scraper.Scraper {
 		PageSize:   20,
 		JobFetcher: fetcher,
 		ParseFunc: func(data []byte) (*models.Job, error) {
-			// TODO Implement job parsing logic here
-			// This should convert the raw JSON to a models.Job struct
 			return &models.Job{}, nil
 		},
 	}
 
+	baseScraper := jobsch.NewJobsChScraper(jobsChConfig)
+
+	// Wrap to PaginatedMetricsDecorator, as JobsChScraper implements the PaginatedScraper Interface
+	decoratedScraper := scraper.NewPaginatedMetricsDecorator(baseScraper)
+
 	return map[string]scraper.Scraper{
-		scraper.JobsChScraperName: jobsch.NewJobsChScraper(jobsChConfig),
+		scraper.JobsChScraperName: decoratedScraper,
 	}
 }

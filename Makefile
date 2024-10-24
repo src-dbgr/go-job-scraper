@@ -1,22 +1,41 @@
 # Makefile for job-scraper project
 
-.PHONY: build run test lint docker-up docker-down
+.PHONY: all clean build test test-unit test-integration lint deps docker-up docker-down
 
-# Build the application
-build:
-	go build -o job-scraper ./cmd/scraper
+# Default target
+all: clean deps test build
 
-# Run the application
-run: build
-	./job-scraper
+# Clean up build artifacts and temporary files
+clean:
+	rm -f job-scraper
+	rm -rf dist/
+	go clean -testcache
+	go clean
 
-# Run tests
-test:
-	go test ./...
+# Install/Update dependencies
+deps:
+	go mod download
+	go mod tidy
 
 # Run linter
 lint:
 	golangci-lint run
+
+# Build the application
+build:
+	mkdir -p dist
+	go build -o dist/job-scraper ./cmd/scraper
+
+# Run only unit tests
+test-unit:
+	go test -v $(shell go list ./... | grep -v /tests/integration)
+
+# Run integration tests
+test-integration:
+	go test -v -tags=integration ./tests/integration
+
+# Run all tests
+test: test-unit test-integration
 
 # Start Docker services
 docker-up:
@@ -26,12 +45,16 @@ docker-up:
 docker-down:
 	docker compose down
 
-# Clean up build artifacts
-clean:
-	rm -f job-scraper
-	go clean
+# Run the application
+run: build
+	./dist/job-scraper
 
-# Update dependencies
-deps-update:
-	go get -u ./...
-	go mod tidy
+# Generate test coverage report
+cover:
+	mkdir -p coverage
+	go test -coverprofile=coverage/coverage.out ./...
+	go tool cover -html=coverage/coverage.out -o coverage/coverage.html
+
+# Check for security vulnerabilities
+sec-check:
+	govulncheck ./...

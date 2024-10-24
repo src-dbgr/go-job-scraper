@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"sync"
 
+	"job-scraper/internal/api/middleware"
 	"job-scraper/internal/processor/openai"
 	"job-scraper/internal/scraper"
 	"job-scraper/internal/services"
@@ -44,12 +45,13 @@ func (a *API) setupRoutes() {
 	// Create a subrouter for v1
 	v1Router := a.router.PathPrefix("/api/v1").Subrouter()
 
-	// Middleware that sets the api version
+	// Middleware that sets the api version and metrics
 	v1Router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			VersionMiddleware(next.ServeHTTP, "v1")(w, r)
 		})
 	})
+	v1Router.Use(middleware.MetricsMiddleware)
 
 	// Scraper routes
 	v1Router.HandleFunc("/scrape/{scraper}", a.handleScrape).Methods("POST")
