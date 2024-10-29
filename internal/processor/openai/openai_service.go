@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"job-scraper/internal/apperrors"
 	"job-scraper/internal/models"
 	"job-scraper/internal/parser"
 	"net/http"
@@ -54,7 +55,11 @@ func NewProcessor(config Config, promptRepo PromptRepository) *Processor {
 func (p *Processor) Process(ctx context.Context, job models.Job) (models.Job, error) {
 	updatedJob, err := p.extractJobInfo(ctx, job.Description)
 	if err != nil {
-		return job, fmt.Errorf("failed to process job with OpenAI: %w", err)
+		return job, apperrors.NewProcessingError(
+			job.ID.Hex(),
+			"failed to process job with OpenAI",
+			err,
+		)
 	}
 
 	// Preserve the original URL and any other fields that should not be overwritten
@@ -71,7 +76,7 @@ func (p *Processor) Process(ctx context.Context, job models.Job) (models.Job, er
 func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (*models.Job, error) {
 	prompt, err := p.promptRepo.GetPrompt("job_extraction")
 	if err != nil {
-		return nil, fmt.Errorf("error getting prompt: %w", err)
+		return nil, apperrors.NewProcessingError("", "Failed to get prompt", err)
 	}
 
 	payload := map[string]interface{}{
@@ -91,12 +96,12 @@ func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling payload: %w", err)
+		return nil, apperrors.NewProcessingError("", "Failed marshalling payload", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", p.config.APIURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, apperrors.NewProcessingError("", "Failed to create request", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -104,13 +109,17 @@ func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (
 
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error making request: %w", err)
+		return nil, apperrors.NewProcessingError("", "Failed to make request", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+		return nil, apperrors.NewProcessingError(
+			"",
+			fmt.Sprintf("Unexpected status code: %d", resp.StatusCode),
+			fmt.Errorf("body: %s", string(body)),
+		)
 	}
 
 	var result struct {
@@ -122,7 +131,7 @@ func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("error decoding response: %w", err)
+		return nil, apperrors.NewProcessingError("", "Error decoding response", err)
 	}
 
 	if len(result.Choices) == 0 {
@@ -131,12 +140,12 @@ func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (
 
 	jsonContent, err := extractJSONFromContent(result.Choices[0].Message.Content)
 	if err != nil {
-		return nil, fmt.Errorf("error extracting JSON from content: %w", err)
+		return nil, apperrors.NewProcessingError("", "Failed to extract JSON from OpenAI response", err)
 	}
 
 	job, err := p.jobParser.ParseJob([]byte(jsonContent))
 	if err != nil {
-		return nil, fmt.Errorf("error parsing job info: %w", err)
+		return nil, apperrors.NewProcessingError("", "Failed to parse job information", err)
 	}
 
 	return job, nil

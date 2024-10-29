@@ -3,6 +3,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"job-scraper/internal/apperrors"
 	"job-scraper/internal/models"
 	"strconv"
 	"time"
@@ -26,7 +27,7 @@ func (jp *JobParser) ParseJob(data []byte) (*models.Job, error) {
 	}
 
 	if err := json.Unmarshal(data, &aux); err != nil {
-		return nil, fmt.Errorf("error unmarshaling job data: %w", err)
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeParser, "Failed to parse job data", err)
 	}
 
 	job := &aux.Job
@@ -34,12 +35,12 @@ func (jp *JobParser) ParseJob(data []byte) (*models.Job, error) {
 	var err error
 	job.PostingDate, err = parseDate(aux.PostingDate)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing posting date: %w", err)
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeParser, "Error parsing posting date", err)
 	}
 
 	job.ExpirationDate, err = parseDate(aux.ExpirationDate)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing expiration date: %w", err)
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeParser, "Error parsing expiration date", err)
 	}
 
 	job.YearsOfExperience = parseIntOrString(aux.YearsOfExperience)
@@ -61,7 +62,11 @@ func parseDate(dateStr string) (time.Time, error) {
 			return t, nil
 		}
 	}
-	return time.Time{}, fmt.Errorf("unable to parse date: %s", dateStr)
+	return time.Time{}, apperrors.NewBaseError(
+		apperrors.ErrCodeParser,
+		fmt.Sprintf("Unable to parse date: %s", dateStr),
+		nil,
+	)
 }
 
 func parseIntOrString(v interface{}) int {

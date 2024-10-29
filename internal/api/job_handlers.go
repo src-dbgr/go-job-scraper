@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"job-scraper/internal/apperrors"
 	"net/http"
 	"strconv"
 
@@ -38,8 +40,13 @@ func (a *API) getJobByID(w http.ResponseWriter, r *http.Request) {
 
 	job, err := a.storage.GetJobByID(ctx, id)
 	if err != nil {
+		var notFoundErr *apperrors.NotFoundError
+		if errors.As(err, &notFoundErr) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
 		log.Error().Err(err).Str("id", id).Msg("Failed to get job")
-		http.Error(w, "Job not found", http.StatusNotFound)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 

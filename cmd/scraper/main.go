@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"job-scraper/internal/app"
+	"job-scraper/internal/apperrors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,7 +22,11 @@ func main() {
 
 	application, err := app.New(ctx)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize application")
+		log.Fatal().Err(apperrors.NewBaseError(
+			apperrors.ErrCodeInitialization,
+			"Failed to initialize application",
+			err,
+		)).Msg("Application startup failed")
 	}
 
 	log.Info().Msg("Application initialized, starting...")

@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"job-scraper/internal/apperrors"
 	"job-scraper/internal/models"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -47,12 +48,12 @@ func (c *Client) GetJobs(ctx context.Context) ([]models.Job, error) {
 	var jobs []models.Job
 	cursor, err := c.db.Collection("jobs").Find(ctx, bson.M{})
 	if err != nil {
-		return nil, err
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeStorage, "failed to fetch jobs", err)
 	}
 	defer cursor.Close(ctx)
 
 	if err = cursor.All(ctx, &jobs); err != nil {
-		return nil, err
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeStorage, "failed to decode jobs", err)
 	}
 	return jobs, nil
 }
@@ -60,15 +61,21 @@ func (c *Client) GetJobs(ctx context.Context) ([]models.Job, error) {
 func (c *Client) GetJobByID(ctx context.Context, id string) (*models.Job, error) {
 	var job models.Job
 	err := c.db.Collection("jobs").FindOne(ctx, bson.M{"_id": id}).Decode(&job)
+	if err == mongo.ErrNoDocuments {
+		return nil, apperrors.NewNotFoundError("Job", id)
+	}
 	if err != nil {
-		return nil, err
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeStorage, "database error", err)
 	}
 	return &job, nil
 }
 
 func (c *Client) SaveJob(ctx context.Context, job models.Job) error {
 	_, err := c.db.Collection("jobs").InsertOne(ctx, job)
-	return err
+	if err != nil {
+		return apperrors.NewBaseError(apperrors.ErrCodeStorage, "failed to save job", err)
+	}
+	return nil
 }
 
 func (c *Client) GetJobCountByCategory(ctx context.Context) (map[string]int, error) {

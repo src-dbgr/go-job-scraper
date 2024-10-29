@@ -3,10 +3,10 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"time"
 
+	"job-scraper/internal/apperrors"
 	"job-scraper/internal/storage"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -454,7 +454,11 @@ func (s *JobStatisticsService) GetCompanySizeDistribution() ([]bson.M, error) {
 
 	results, err := s.aggregateResults(ctx, pipeline)
 	if err != nil {
-		return nil, fmt.Errorf("error executing aggregation: %w", err)
+		return nil, apperrors.NewBaseError(
+			apperrors.ErrCodeStorage,
+			"Failed to execute aggregation query",
+			err,
+		)
 	}
 
 	return results, nil

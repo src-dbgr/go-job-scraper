@@ -57,7 +57,10 @@ func (a *API) runScraper(scraperName string, s scraper.Scraper, pages int) {
 
 	existingURLs, err := a.storage.GetExistingURLs(ctx)
 	if err != nil {
-		log.Error().Err(err).Str("scraper", scraperName).Msg("Failed to fetch existing URLs")
+		log.Error().
+			Err(err).
+			Str("scraper", scraperName).
+			Msg("Failed to fetch existing URLs")
 		a.runningScrapers.Store(scraperName, &ScraperStatus{Name: scraperName, Status: "Failed", Jobs: 0})
 		return
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"job-scraper/internal/api"
+	"job-scraper/internal/apperrors"
 	"job-scraper/internal/config"
 	"job-scraper/internal/processor/openai"
 	"job-scraper/internal/scheduler"
@@ -28,14 +29,14 @@ type App struct {
 func New(ctx context.Context) (*App, error) {
 	cfg, err := loadConfig()
 	if err != nil {
-		return nil, err
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeConfig, "Failed to load configuration", err)
 	}
 
 	initLogger(cfg)
 
 	storage, err := initStorage(ctx, cfg)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeStorage, "Failed to initialize storage", err)
 	}
 
 	scrapers := initScrapers(cfg)
@@ -43,12 +44,12 @@ func New(ctx context.Context) (*App, error) {
 
 	sched, err := initScheduler(ctx, storage, scrapers, cfg)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeInitialization, "Failed to initialize scheduler", err)
 	}
 
 	openaiProcessor, err := initOpenAIProcessor(cfg)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeProcessing, "Failed to initialize OpenAI processor", err)
 	}
 
 	jobStatsService := services.NewJobStatisticsService(storage)

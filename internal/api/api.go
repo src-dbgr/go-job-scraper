@@ -42,6 +42,9 @@ func NewAPI(scrapers map[string]scraper.Scraper, storage storage.Storage, openai
 }
 
 func (a *API) setupRoutes() {
+
+	a.router.Use(middleware.ErrorHandler)
+
 	// Create a subrouter for v1
 	v1Router := a.router.PathPrefix("/api/v1").Subrouter()
 
