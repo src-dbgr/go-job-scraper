@@ -48,6 +48,5 @@ prompt.txt
 .env
 
 # Misc
-cat_files_recursive.sh
 INTERNAL_README.md
 **/__debug_bin*
