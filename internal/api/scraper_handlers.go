@@ -53,6 +53,11 @@ func (a *API) runScraper(scraperName string, s scraper.Scraper, pages int) {
 	a.runningScrapers.Store(scraperName, &ScraperStatus{Name: scraperName, Status: "Running", Jobs: 0})
 	defer a.runningScrapers.Delete(scraperName)
 
+	log.Info().
+		Str("scraper", scraperName).
+		Int("pages", pages).
+		Msg("Starting scraper")
+
 	ctx := context.Background()
 
 	existingURLs, err := a.storage.GetExistingURLs(ctx)

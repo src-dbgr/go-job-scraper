@@ -1,5 +1,26 @@
 Extract the following job details from the description:
 %s
-Include fields: title (Job title), description (Job description), company (Company name), location (Job location), employmentType (Employment type, e.g., Full-time, Part-time, Contract), postingDate (Date when the job was posted), expirationDate (Date when the job expires), isActive (Status if the job is still active), jobCategories (one or more from [SOFTWARE_DEVELOPER, DATA_SCIENTIST, MACHINE_LEARNING_ENGINEER, AI_RESEARCHER, SYSTEMS_ENGINEER, NETWORK_ENGINEER, DATABASE_ADMINISTRATOR, SECURITY_ANALYST, CYBER_SECURITY_SPECIALIST, DEVOPS_ENGINEER, FRONTEND_DEVELOPER, BACKEND_DEVELOPER, FULLSTACK_DEVELOPER, MOBILE_DEVELOPER, CLOUD_ENGINEER, PRODUCT_MANAGER, PROJECT_MANAGER, IT_SUPPORT_SPECIALIST, BUSINESS_ANALYST, QA_ENGINEER, AUTOMATION_TESTER, UX_UI_DESIGNER, TECHNICAL_WRITER, SOFTWARE_ARCHITECT, BLOCKCHAIN_DEVELOPER, DATA_ENGINEER, BIG_DATA_ANALYST, SITE_RELIABILITY_ENGINEER, IoT_ENGINEER, EMBEDDED_SYSTEMS_DEVELOPER, ROBOTICS_ENGINEER, GAME_DEVELOPER, AR_VR_DEVELOPER, IT_CONSULTANT, ERP_SPECIALIST, SAP_CONSULTANT, BIOINFORMATICS_SPECIALIST, HEALTH_INFORMATICS_SPECIALIST, COMPUTER_VISION_ENGINEER, NATURAL_LANGUAGE_PROCESSING_ENGINEER, CLOUD_SOLUTIONS_ARCHITECT, VIRTUALIZATION_ENGINEER, TELECOM_ENGINEER, NETWORK_SECURITY_ENGINEER, INFORMATION_SECURITY_ANALYST, DEVSECOPS_ENGINEER, DIGITAL_TRANSFORMATION_SPECIALIST, IT_SERVICE_MANAGER, DATA_PRIVACY_OFFICER, SOFTWARE_TEST_ENGINEER, IT_AUDITOR, SYSTEM_ADMINISTRATOR, CRM_SPECIALIST, ECOMMERCE_SPECIALIST, MOBILE_APP_DESIGNER]), mustSkills (Required skills for the job), optionalSkills (Preferred skills for the job), salary (Expected salary range), yearsOfExperience (Required years of experience), educationLevel (Required education level, e.g., Bachelor's, Master's, PhD), benefits (List of benefits offered by the job), companySize (Size of the company in number of employees), workCulture (Description of the company's work culture), remote (Whether the job allows remote work), languages (Languages required for the job, e.g., English, German).
 
-Provide the extracted information in JSON format. Replace the description with a short summary of the description. If a job is not in the jobCategories list, take the most related from the list, this is very important.
+Fields to extract:
+- **title**: Job title
+- **description**: A brief summary of the job (2-3 sentences)
+- **company**: Company name
+- **location**: Job location
+- **employmentType**: Employment type (e.g., Full-time, Part-time, Contract)
+- **postingDate**: Date the job was posted
+- **expirationDate**: Date when the job expires
+- **isActive**: Status if the job is still active
+- **jobCategories**: One or more categories from [SOFTWARE_DEVELOPER, DATA_SCIENTIST, MACHINE_LEARNING_ENGINEER, AI_RESEARCHER, SYSTEMS_ENGINEER, NETWORK_ENGINEER, DATABASE_ADMINISTRATOR, SECURITY_ANALYST, CYBER_SECURITY_SPECIALIST, DEVOPS_ENGINEER, FRONTEND_DEVELOPER, BACKEND_DEVELOPER, FULLSTACK_DEVELOPER, MOBILE_DEVELOPER, CLOUD_ENGINEER, PRODUCT_MANAGER, PROJECT_MANAGER, IT_SUPPORT_SPECIALIST, BUSINESS_ANALYST, QA_ENGINEER, AUTOMATION_TESTER, UX_UI_DESIGNER, TECHNICAL_WRITER, SOFTWARE_ARCHITECT, BLOCKCHAIN_DEVELOPER, DATA_ENGINEER, BIG_DATA_ANALYST, SITE_RELIABILITY_ENGINEER, IoT_ENGINEER, EMBEDDED_SYSTEMS_DEVELOPER, ROBOTICS_ENGINEER, GAME_DEVELOPER, AR_VR_DEVELOPER, IT_CONSULTANT, ERP_SPECIALIST, SAP_CONSULTANT, BIOINFORMATICS_SPECIALIST, HEALTH_INFORMATICS_SPECIALIST, COMPUTER_VISION_ENGINEER, NATURAL_LANGUAGE_PROCESSING_ENGINEER, CLOUD_SOLUTIONS_ARCHITECT, VIRTUALIZATION_ENGINEER, TELECOM_ENGINEER, NETWORK_SECURITY_ENGINEER, INFORMATION_SECURITY_ANALYST, DEVSECOPS_ENGINEER, DIGITAL_TRANSFORMATION_SPECIALIST, IT_SERVICE_MANAGER, DATA_PRIVACY_OFFICER, SOFTWARE_TEST_ENGINEER, IT_AUDITOR, SYSTEM_ADMINISTRATOR, CRM_SPECIALIST, ECOMMERCE_SPECIALIST, MOBILE_APP_DESIGNER]. If the job doesn’t fit precisely, choose the most related category.
+- **mustSkills**: Required skills for the job
+- **optionalSkills**: Preferred skills for the job
+- **salary**: Expected salary range
+- **yearsOfExperience**: Required years of experience
+- **educationLevel**: Required education level (e.g., Bachelor's, Master's, PhD)
+- **benefits**: List of benefits offered
+- **companySize**: Company size (number of employees)
+- **workCulture**: Description of the company's work culture
+- **remote**: Whether the job allows remote work (yes/no)
+- **languages**: Languages required (e.g., English, German)
+
+If the job is not in the IT field, skip it. Also, skip any apprenticeships or internships.
+Provide the extracted information in valid JSON format. Do not add anything else to the response. If a job category does not perfectly match, select the closest relevant category.

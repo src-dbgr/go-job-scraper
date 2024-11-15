@@ -107,17 +107,17 @@ func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.config.APIKey))
 
-	resp, err := p.client.Do(req)
+	response, err := p.client.Do(req)
 	if err != nil {
 		return nil, apperrors.NewProcessingError("", "Failed to make request", err)
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
 		return nil, apperrors.NewProcessingError(
 			"",
-			fmt.Sprintf("Unexpected status code: %d", resp.StatusCode),
+			fmt.Sprintf("Unexpected status code: %d", response.StatusCode),
 			fmt.Errorf("body: %s", string(body)),
 		)
 	}
@@ -130,7 +130,7 @@ func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (
 		} `json:"choices"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
 		return nil, apperrors.NewProcessingError("", "Error decoding response", err)
 	}
 
@@ -145,6 +145,20 @@ func (p *Processor) extractJobInfo(ctx context.Context, jobDescription string) (
 
 	job, err := p.jobParser.ParseJob([]byte(jsonContent))
 	if err != nil {
+		log.Info().Msg("---------------------------------------------------------------------------------")
+		// Format the JSON content for better readability
+		var prettyJSON bytes.Buffer
+		if indentErr := json.Indent(&prettyJSON, []byte(result.Choices[0].Message.Content), "", "    "); indentErr != nil {
+			// If formatting fails, use raw content
+			log.Error().
+				Err(err).
+				Msgf("\n\n%s\n\n", result.Choices[0].Message.Content)
+		} else {
+			log.Error().
+				Err(err).
+				Msgf("\n\n%s\n\n", prettyJSON.String())
+		}
+		log.Info().Msg("---------------------------------------------------------------------------------")
 		return nil, apperrors.NewProcessingError("", "Failed to parse job information", err)
 	}
 
