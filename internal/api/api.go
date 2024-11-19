@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"job-scraper/internal/api/middleware"
-	"job-scraper/internal/processor/openai"
+	"job-scraper/internal/processor"
 	"job-scraper/internal/scraper"
 	"job-scraper/internal/services"
 	"job-scraper/internal/storage"
@@ -17,23 +17,25 @@ type API struct {
 	router          *mux.Router
 	scrapers        map[string]scraper.Scraper
 	storage         storage.Storage
-	openaiProcessor *openai.Processor
+	processor       processor.JobProcessor
+	scraperService  *services.ScraperService
 	runningScrapers *sync.Map
 	jobStatsService *services.JobStatisticsService
 }
 
-type ScraperStatus struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Jobs   int    `json:"jobs"`
-}
-
-func NewAPI(scrapers map[string]scraper.Scraper, storage storage.Storage, openaiProcessor *openai.Processor, jobStatsService *services.JobStatisticsService) *API {
+func NewAPI(
+	scrapers map[string]scraper.Scraper,
+	storage storage.Storage,
+	processor processor.JobProcessor,
+	scraperService *services.ScraperService,
+	jobStatsService *services.JobStatisticsService,
+) *API {
 	api := &API{
 		router:          mux.NewRouter(),
 		scrapers:        scrapers,
 		storage:         storage,
-		openaiProcessor: openaiProcessor,
+		processor:       processor,
+		scraperService:  scraperService,
 		runningScrapers: &sync.Map{},
 		jobStatsService: jobStatsService,
 	}

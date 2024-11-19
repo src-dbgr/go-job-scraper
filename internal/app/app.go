@@ -9,7 +9,7 @@ import (
 	"job-scraper/internal/api"
 	"job-scraper/internal/apperrors"
 	"job-scraper/internal/config"
-	"job-scraper/internal/processor/openai"
+	"job-scraper/internal/processor"
 	"job-scraper/internal/scheduler"
 	"job-scraper/internal/services"
 	"job-scraper/internal/storage"
@@ -18,12 +18,13 @@ import (
 )
 
 type App struct {
-	cfg             *config.Config
-	storage         storage.Storage
-	scheduler       *scheduler.Scheduler
-	openaiProcessor *openai.Processor
-	api             *api.API
-	server          *http.Server
+	cfg            *config.Config
+	storage        storage.Storage
+	scheduler      *scheduler.Scheduler
+	processor      processor.JobProcessor
+	scraperService *services.ScraperService
+	api            *api.API
+	server         *http.Server
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -42,28 +43,32 @@ func New(ctx context.Context) (*App, error) {
 	scrapers := initScrapers(cfg)
 	initMetrics(storage)
 
-	sched, err := initScheduler(ctx, storage, scrapers, cfg)
+	// Initialisiere den Prozessor basierend auf der Konfiguration
+	processor, err := initProcessor(cfg)
+	if err != nil {
+		return nil, apperrors.NewBaseError(apperrors.ErrCodeProcessing, "Failed to initialize processor", err)
+	}
+
+	scraperService := services.NewScraperService(storage, processor)
+
+	sched, err := initScheduler(ctx, scraperService, scrapers, cfg)
 	if err != nil {
 		return nil, apperrors.NewBaseError(apperrors.ErrCodeInitialization, "Failed to initialize scheduler", err)
 	}
 
-	openaiProcessor, err := initOpenAIProcessor(cfg)
-	if err != nil {
-		return nil, apperrors.NewBaseError(apperrors.ErrCodeProcessing, "Failed to initialize OpenAI processor", err)
-	}
-
 	jobStatsService := services.NewJobStatisticsService(storage)
 
-	apiHandler := api.NewAPI(scrapers, storage, openaiProcessor, jobStatsService)
+	apiHandler := api.NewAPI(scrapers, storage, processor, scraperService, jobStatsService)
 
 	return &App{
-		cfg:             cfg,
-		storage:         storage,
-		scheduler:       sched,
-		openaiProcessor: openaiProcessor,
-		api:             apiHandler,
+		cfg:            cfg,
+		storage:        storage,
+		scheduler:      sched,
+		processor:      processor,
+		scraperService: scraperService,
+		api:            apiHandler,
 		server: &http.Server{
-			Addr:    fmt.Sprintf(":%d", cfg.API.Port), // Use configured port
+			Addr:    fmt.Sprintf(":%d", cfg.API.Port),
 			Handler: apiHandler,
 		},
 	}, nil
@@ -98,19 +103,4 @@ func (a *App) Shutdown(ctx context.Context) {
 	if err := a.server.Shutdown(shutdownCtx); err != nil {
 		log.Error().Err(err).Msg("Failed to shutdown API server gracefully")
 	}
-}
-
-func initOpenAIProcessor(cfg *config.Config) (*openai.Processor, error) {
-	openaiConfig := openai.Config{
-		APIURL:      cfg.OpenAI.APIURL,
-		APIKey:      cfg.OpenAI.APIKey,
-		Model:       cfg.OpenAI.Model,
-		Temperature: cfg.OpenAI.Temperature,
-		MaxTokens:   cfg.OpenAI.MaxTokens,
-		TopP:        cfg.OpenAI.TopP,
-		FreqPenalty: cfg.OpenAI.FreqPenalty,
-		PresPenalty: cfg.OpenAI.PresPenalty,
-	}
-	promptRepo := openai.NewFilePromptRepository()
-	return openai.NewProcessor(openaiConfig, promptRepo), nil
 }

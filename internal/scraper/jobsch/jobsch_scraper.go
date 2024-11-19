@@ -77,8 +77,18 @@ func (s *JobsChScraper) ScrapePages(ctx context.Context, pages int) ([]models.Jo
 }
 
 func (s *JobsChScraper) scrapePage(ctx context.Context, page int) ([]models.Job, error) {
-	url := fmt.Sprintf("%s/public/search?page=%d&query=software&rows=%d", s.baseURL, page, s.pageSize)
-	log.Info().Int("page", page).Int("pageSize", s.pageSize).Str("url", url).Msg("Scraping jobs.ch page")
+
+	url := fmt.Sprintf("%s/public/search?page=%d&query=software&rows=%d",
+		s.baseURL,
+		page,
+		s.pageSize)
+
+	log.Info().
+		Int("page", page).
+		Int("pageSize", s.pageSize).
+		Str("url", url).
+		Msg("Scraping jobs.ch page")
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, apperrors.NewScrapingError("JobsCh", url, err)
@@ -150,6 +160,7 @@ func NewJobsChFetcher(client HTTPClient, baseURL string) *JobsChFetcher {
 }
 
 func (f *JobsChFetcher) FetchJob(ctx context.Context, jobID string) (*models.Job, error) {
+
 	url := fmt.Sprintf("%s/public/search/job/%s", f.baseURL, jobID)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

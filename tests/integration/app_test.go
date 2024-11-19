@@ -279,6 +279,7 @@ func setupTestEnv(t *testing.T) (*TestEnv, error) {
 	t.Setenv("OPENAI_API_URL", fmt.Sprintf("%s/chat/completions", mockBaseURL))
 	t.Setenv("SCRAPER_JOBSCH_BASE_URL", fmt.Sprintf("%s/api/v1", mockBaseURL))
 	t.Setenv("PROMETHEUS_PORT", "0")
+	t.Setenv("PROCESSOR_TYPE", "openai")
 
 	t.Log("Test environment setup completed")
 	return &TestEnv{

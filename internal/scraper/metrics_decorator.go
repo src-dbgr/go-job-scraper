@@ -6,6 +6,8 @@ import (
 
 	"job-scraper/internal/metrics/domains"
 	"job-scraper/internal/models"
+
+	"github.com/rs/zerolog/log"
 )
 
 type MetricsDecorator struct {
@@ -18,6 +20,7 @@ func NewMetricsDecorator(scraper Scraper) Scraper {
 
 func (d *MetricsDecorator) Scrape(ctx context.Context) ([]models.Job, error) {
 	start := time.Now()
+	log.Info().Msg("Scraper started successfully")
 	jobs, err := d.scraper.Scrape(ctx)
 	duration := time.Since(start).Seconds()
 

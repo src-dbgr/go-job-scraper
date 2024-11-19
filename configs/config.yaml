@@ -9,6 +9,8 @@ scrapers:
   jobsch:
     base_url: https://www.jobs.ch/api/v1
     api_key: ${SCRAPER_JOBSCH_API_KEY}
+    default_pages: 5       # Default Anzahl der Seiten für den Scheduler
+    max_pages: 20          # Anzahl der Jobs pro Seite
     schedule: "0 */6 * * *"  # Cron expression for every 6 hours
 
 logging:
