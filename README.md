@@ -130,7 +130,7 @@ The application follows a modular, layered architecture:
 ## Initial Setup and Configuration
 
 ### Prerequisites
-- Go 1.22+
+- Go 1.23+
 - Docker and Docker Compose
 - MongoDB 6.0+
 - OpenAI API key
