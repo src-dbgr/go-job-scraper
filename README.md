@@ -141,7 +141,7 @@ The application follows a modular, layered architecture:
 1. Clone the repository:
 ```bash
 git clone https://github.com/src-dbgr/go-job-scraper.git
-cd job-scraper
+cd go-job-scraper
 ```
 
 2. Configure environment variables:
