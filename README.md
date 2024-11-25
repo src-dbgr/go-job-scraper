@@ -16,7 +16,7 @@ The application uses by default the OpenAI ChatGPT API (or any other LLM Service
   - [Initial Setup and Configuration](#initial-setup-and-configuration)
     - [Prerequisites](#prerequisites)
     - [Environment Setup](#environment-setup)
-    - [Deployment and Local exectuion Options](#deployment-and-local-exectuion-options)
+    - [Deployment and Local Execution Options](#deployment-and-local-execution-options)
       - [Local Development](#local-development)
       - [Starting / Running Locally](#starting--running-locally)
       - [Docker Deployment](#docker-deployment)
@@ -210,7 +210,7 @@ openai:
   presence_penalty: 0
 ```
 
-### Deployment and Local exectuion Options
+### Deployment and Local Execution Options
 
 #### Local Development
 1. Install dependencies:
@@ -332,7 +332,7 @@ This includes:
     - **Prometheus Metrics** (in a new terminal, keep this terminal open):
 
       ```bash
-      kubectl port-forward svc/job-scraper-api -n job-scraper 2112:2112
+      kubectl port-forward svc/job-scraper-metrics -n job-scraper 2112:2112
       ```
 
 11. **Verify the application is running**:
@@ -433,7 +433,34 @@ This includes:
 
     The Prometheus GUI should open in your browser.
 
-16. **Delete the setup if required (WARNING: This will delete all data)**:
+16. **K8s Dasboard (optional)**:
+    In order to enable a K8s dasboard you can proceed with the following steps:
+    ```bash
+    # activates the dashboard
+    minikube addons enable dashboard
+    ```
+    
+    ```bash
+    # starts the dashboard
+    minikube dashboard
+    ```
+    - Switch the namespace in the dropdown at the top of the page from `default` to `job-scraper`
+    
+    <details>
+    <summary>K8s Dashboard (click to expand)</summary>
+
+    ![K8s Dashboard](misc/screenshots/job-scraper-k8s-dashboard.png)
+    </details>
+    
+    [Local Kubernetes Dashboard](http://127.0.0.1:50052/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/#/workloads?namespace=job-scraper)
+
+17.  **Stop Minikube**
+    
+      ```bash
+      minikube stop
+      ```
+
+18.  **Delete the setup if required (WARNING: This will delete all data)**:
 
     - **Delete the namespace**:
 
@@ -451,6 +478,8 @@ This includes:
 - Replace the registry with your actual container registry
 - Update the host in the Ingress configuration
 - Set your actual secrets in `secrets.yaml`
+  - Base64 encoding: `echo -n "your-string-here" | base64`
+  - Base64 decoding: `echo "your-string-here" | base64 --decode`
 - Adjust resource limits based on your needs
 
 #### Service Access
