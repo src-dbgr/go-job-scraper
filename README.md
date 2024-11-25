@@ -462,13 +462,13 @@ This includes:
 
 18.  **Delete the setup if required (WARNING: This will delete all data)**:
 
-    - **Delete the namespace**:
+      **Delete the namespace**:
 
       ```bash
       kubectl delete namespace job-scraper
       ```
 
-    - **Delete Minikube cluster**:
+      **Delete Minikube cluster**:
 
       ```bash
       minikube delete
