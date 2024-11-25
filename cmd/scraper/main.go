@@ -38,7 +38,6 @@ func main() {
 
 	log.Info().Msg("Application initialized, starting...")
 	go application.Run(ctx)
-	log.Info().Msg("Application started successfully")
 
 	waitForShutdown(cancel)
 	application.Shutdown(ctx)

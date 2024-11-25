@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"sync"
 
@@ -93,6 +94,11 @@ func (a *API) setupRoutes() {
 	v1Router.HandleFunc("/stats/mustskills/{skill}", a.getMustSkillFrequencyPerDay).Methods("GET")
 	v1Router.HandleFunc("/stats/optionalskills/{skill}", a.getOptionalSkillFrequencyPerDay).Methods("GET")
 	v1Router.HandleFunc("/stats/job-categories-counts", a.getJobCategoryCounts).Methods("GET")
+
+	a.router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
+	})
 }
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -1,12 +1,13 @@
 package app
 
 import (
+	"fmt"
 	"job-scraper/internal/metrics"
 	"job-scraper/internal/metrics/domains"
 	"job-scraper/internal/storage"
 	"job-scraper/internal/storage/mongodb"
+	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -49,10 +50,56 @@ func trackConnections(storage storage.Storage) {
 	}
 }
 
-func startPrometheusServer(port int) {
-	http.Handle("/metrics", promhttp.Handler())
-	log.Info().Msgf("Starting Prometheus metrics server on :%d", port)
-	if err := http.ListenAndServe(":"+strconv.Itoa(port), nil); err != nil {
-		log.Error().Err(err).Msg("Prometheus metrics server failed")
+// startPrometheusServer initiates the metrics server
+func startPrometheusServer(port int) error {
+	server, err := setupServer(port)
+	if err != nil {
+		return err
 	}
+
+	// Start server and verify it's running
+	if err := runServerWithVerification(server, port); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setupServer(port int) (*http.Server, error) {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to create listener for Prometheus metrics server")
+		return nil, err
+	}
+
+	server := &http.Server{
+		Handler: promhttp.Handler(),
+	}
+
+	log.Info().Msgf("Starting Prometheus metrics server on port %d", port)
+
+	// Start server in go routine
+	go func() {
+		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Prometheus metrics server failed")
+		}
+	}()
+
+	return server, nil
+}
+
+func runServerWithVerification(server *http.Server, port int) error {
+	// Give the server a moment to start
+	time.Sleep(150 * time.Millisecond)
+
+	// Verify server is responding
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", port))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to verify Prometheus metrics server")
+		return err
+	}
+	defer resp.Body.Close()
+
+	log.Info().Msgf("Started Prometheus metrics server on port %d", port)
+	return nil
 }

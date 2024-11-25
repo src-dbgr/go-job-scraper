@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -74,23 +75,95 @@ func New(ctx context.Context) (*App, error) {
 	}, nil
 }
 
-func (a *App) Run(ctx context.Context) {
+func (a *App) Run(ctx context.Context) error {
 	log.Info().Msg("Starting application...")
 
+	// Start Prometheus server
 	go func() {
-		log.Info().Int("port", a.cfg.Prometheus.Port).Msg("Starting Prometheus metrics server")
-		startPrometheusServer(a.cfg.Prometheus.Port)
+		if err := startPrometheusServer(a.cfg.Prometheus.Port); err != nil {
+			log.Error().Err(err).Msg("Failed to start Prometheus server")
+		}
 	}()
 
+	// Start and verify API server
+	if err := a.startAPIServer(ctx); err != nil {
+		return fmt.Errorf("application startup failed: %w", err)
+	}
+
+	// Start scheduler
 	go a.scheduler.Start(ctx)
 
-	addr := fmt.Sprintf(":%d", a.cfg.API.Port)
-	log.Info().Str("address", addr).Msg("Starting API server")
-	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Error().Err(err).Msg("API server failed")
-	}
+	// Wait for context cancellation
+	<-ctx.Done()
+	return nil
 }
 
+func (a *App) startAPIServer(ctx context.Context) error {
+	addr := fmt.Sprintf(":%d", a.cfg.API.Port)
+	log.Info().Msgf("Starting API server on port %d", a.cfg.API.Port)
+
+	// First check if port is available
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to start API server: port %d is not available", a.cfg.API.Port)
+		return fmt.Errorf("port %d is not available: %w", a.cfg.API.Port, err)
+	}
+
+	// Start server with created listener
+	serverErrChan := make(chan error, 1)
+	go func() {
+		if err := a.server.Serve(listener); err != nil && err != http.ErrServerClosed {
+			serverErrChan <- err
+			log.Error().Err(err).Msg("API server failed")
+		}
+	}()
+
+	// Wait for either server error or successful startup
+	select {
+	case err := <-serverErrChan:
+		return fmt.Errorf("API server failed to start: %w", err)
+	case <-time.After(100 * time.Millisecond):
+		// Verify server is running
+		if err := a.verifyAPIServer(ctx); err != nil {
+			return fmt.Errorf("API server verification failed: %w", err)
+		}
+	}
+
+	log.Info().Msgf("Started API server on port %d", a.cfg.API.Port)
+	return nil
+}
+
+// checks if the API server is responding
+func (a *App) verifyAPIServer(ctx context.Context) error {
+	// Give the server a moment to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: time.Second,
+	}
+
+	// Try to connect to health endpoint
+	req, err := http.NewRequestWithContext(ctx, "GET",
+		fmt.Sprintf("http://localhost:%d/health", a.cfg.API.Port), nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("health check failed with status: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+// Shutdown gracefully
 func (a *App) Shutdown(ctx context.Context) {
 	if err := a.storage.Close(ctx); err != nil {
 		log.Error().Err(err).Msg("Failed to close storage")

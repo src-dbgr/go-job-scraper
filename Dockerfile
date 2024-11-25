@@ -24,6 +24,10 @@ COPY --from=builder /app/job-scraper .
 COPY --from=builder /app/configs/ ./configs/
 COPY --from=builder /app/prompts/ ./prompts/
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD wget -qO- http://localhost:8080/health || exit 1
+
 # Prometheus port
 EXPOSE 2112
 
