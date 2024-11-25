@@ -3,8 +3,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8.svg)](https://golang.org/doc/devel/release.html)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-A scalable job scraping application written in Go that collects, processes, and analyzes job postings from various sources. 
-The application uses by default the OpenAI ChatGPT API (or any other LLM Service that has API support) for intelligent data extraction and provides comprehensive analytics through Prometheus and Grafana.
+A scalable job scraping application written in Go that collects, processes, and analyzes job postings from various sources. The application leverages OpenAI's ChatGPT API by default (while maintaining extensibility for other LLM services with API support) for intelligent data extraction and provides comprehensive monitoring and analytics through Prometheus and Grafana.
 
 <details>
 <summary><strong>Table of Contents</strong></summary>

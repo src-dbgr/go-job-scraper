@@ -5,17 +5,19 @@ import (
 	"job-scraper/internal/config"
 	"job-scraper/internal/processor"
 	"job-scraper/internal/processor/openai"
-	// Zukünftige Prozessor-Implementierungen:
+	// Future processor implementations:
 	// "job-scraper/internal/processor/claude"
 	// "job-scraper/internal/processor/gpt4all"
 	// etc.
 )
 
+// initProcessor initializes the appropriate job processor based on the configuration
+// Returns a JobProcessor interface implementation and an error if initialization fails
 func initProcessor(cfg *config.Config) (processor.JobProcessor, error) {
 	switch cfg.Processor.Type {
 	case "openai":
 		return initOpenAIProcessor(cfg)
-	// Zukünftige Prozessor-Typen:
+	// Future processor types:
 	// case "claude":
 	//     return initClaudeProcessor(cfg)
 	// case "gemini":
@@ -25,6 +27,8 @@ func initProcessor(cfg *config.Config) (processor.JobProcessor, error) {
 	}
 }
 
+// initOpenAIProcessor initializes an OpenAI processor with the provided configuration
+// Returns a configured OpenAI processor instance and an error if initialization fails
 func initOpenAIProcessor(cfg *config.Config) (processor.JobProcessor, error) {
 	openaiConfig := openai.Config{
 		APIURL:      cfg.OpenAI.APIURL,
