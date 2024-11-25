@@ -9,8 +9,8 @@ scrapers:
   jobsch:
     base_url: https://www.jobs.ch/api/v1
     api_key: ${SCRAPER_JOBSCH_API_KEY}
-    default_pages: 5       # Default Anzahl der Seiten für den Scheduler
-    max_pages: 20          # Anzahl der Jobs pro Seite
+    default_pages: 5         # Default # of pages for the scheduler
+    max_pages: 20            # No. of jobs per page
     schedule: "0 */6 * * *"  # Cron expression for every 6 hours
 
 logging:
@@ -18,7 +18,7 @@ logging:
   file: "logs/job_scraper.log"
 
 prometheus:
-  port: ${PROMETHEUS_PORT}
+  port: 2112
 
 openai:
   api_key: ${OPENAI_API_KEY}

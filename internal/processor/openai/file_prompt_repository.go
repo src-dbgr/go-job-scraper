@@ -12,12 +12,18 @@ type FilePromptRepository struct {
 }
 
 func NewFilePromptRepository() *FilePromptRepository {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("No caller information")
+	var baseDir string
+	if envPath := os.Getenv("JOBSCRAPER_PROMPT_PATH"); envPath != "" {
+		baseDir = envPath
+	} else {
+		// Fallback
+		_, filename, _, ok := runtime.Caller(0)
+		if !ok {
+			panic("No caller information")
+		}
+		// Navigate up to the project root and then to the prompts directory
+		baseDir = filepath.Join(filepath.Dir(filename), "..", "..", "..", "prompts")
 	}
-	// Navigate up to the project root and then to the prompts directory
-	baseDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "prompts")
 	return &FilePromptRepository{baseDir: baseDir}
 }
 

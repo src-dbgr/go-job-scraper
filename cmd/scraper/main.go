@@ -13,6 +13,13 @@ import (
 )
 
 func main() {
+	// Only try to load .env file if we're not in a container
+	if os.Getenv("JOBSCRAPER_IN_CONTAINER") != "true" {
+		if err := godotenv.Load(); err != nil {
+			log.Warn().Err(err).Msg("Error loading .env file")
+		}
+	}
+
 	if err := godotenv.Load(); err != nil {
 		log.Warn().Err(err).Msg("Error loading .env file")
 	}

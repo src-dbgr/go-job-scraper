@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: job-scraper
+  labels:
+    app: job-scraper
 spec:
   replicas: 1
   selector:
@@ -11,22 +13,61 @@ spec:
     metadata:
       labels:
         app: job-scraper
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "2112"
     spec:
       containers:
       - name: job-scraper
         image: your-registry/job-scraper:latest
+        imagePullPolicy: Always
         ports:
-        - containerPort: 2112
+        - name: http
+          containerPort: 8080
+        - name: metrics
+          containerPort: 2112
         env:
         - name: MONGODB_URI
           valueFrom:
             secretKeyRef:
-              name: mongodb-secret
-              key: uri
-        - name: MONGODB_DATABASE
-          value: jobsdb
+              name: app-secrets
+              key: MONGODB_URI
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: openai-secret
-              key: api-key
+              name: app-secrets
+              key: OPENAI_API_KEY
+        envFrom:
+        - configMapRef:
+            name: app-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/configs
+        - name: prompts-volume
+          mountPath: /app/prompts
+      volumes:
+      - name: config-volume
+        configMap:
+          name: app-config-files
+      - name: prompts-volume
+        configMap:
+          name: app-prompts

@@ -16,8 +16,9 @@ The application uses by default the OpenAI ChatGPT API (or any other LLM Service
   - [Initial Setup and Configuration](#initial-setup-and-configuration)
     - [Prerequisites](#prerequisites)
     - [Environment Setup](#environment-setup)
-    - [Deployment Options](#deployment-options)
+    - [Deployment and Local exectuion Options](#deployment-and-local-exectuion-options)
       - [Local Development](#local-development)
+      - [Starting/Running Locally](#startingrunning-locally)
       - [Docker Deployment](#docker-deployment)
       - [Kubernetes Deployment](#kubernetes-deployment)
       - [Service Access](#service-access)
@@ -36,11 +37,11 @@ The application uses by default the OpenAI ChatGPT API (or any other LLM Service
     - [Grafana Setup and Usage](#grafana-setup-and-usage)
       - [Initial Access](#initial-access)
       - [Setting up the Grafana API Key to Set Up the Data Sources](#setting-up-the-grafana-api-key-to-set-up-the-data-sources)
-      - [Automated Setup using Scripts](#automated-setup-using-scripts)
+      - [Installing the JSON API Connection to Grafana](#installing-the-json-api-connection-to-grafana)
+      - [Automated Datasource Setup using Scripts](#automated-datasource-setup-using-scripts)
       - [Importing the Dashboard](#importing-the-dashboard)
       - [Additional Data Sources (Optional)](#additional-data-sources-optional)
       - [Dashboard Maintenance](#dashboard-maintenance)
-      - [Creating Custom Dashboards (Prometheus Example)](#creating-custom-dashboards-prometheus-example)
     - [Troubleshooting](#troubleshooting)
   - [Extending the Application](#extending-the-application)
     - [Adding a New Scraper](#adding-a-new-scraper)
@@ -49,6 +50,7 @@ The application uses by default the OpenAI ChatGPT API (or any other LLM Service
   - [Testing](#testing)
     - [Running Tests](#running-tests)
     - [Code Style Guidelines](#code-style-guidelines)
+    - [Security Considerations](#security-considerations)
   - [License](#license)
 </details>
 
@@ -146,50 +148,69 @@ cd go-job-scraper
 
 2. Configure environment variables:
 ```bash
-# Copy example environment file
-cp .env.example .env
+# Create an environment file
+touch .env
 ```
 
 3. Set required environment variables in `.env`:
+
+Variables Explanation:
+- MONGODB_URI: MongoDB connection string
+- MONGODB_DATABASE: Database name
+- OPENAI_API_KEY: Your OpenAI API key
+- SCRAPER_JOBSCH_BASE_URL: Base URL for the jobs.ch API
+- SCRAPER_JOBSCH_API_KEY: API key for jobs.ch (if required)
+- GRAFANA_ADMIN_PASSWORD: Password for Grafana admin user
+
+Example
 ```bash
 # Core Settings
 MONGODB_URI=mongodb://mongodb:27017
 MONGODB_DATABASE=jobsdb
-OPENAI_API_KEY=your_openai_api_key
+OPENAI_API_KEY=some-dummy-key
 OPENAI_API_URL=https://api.openai.com/v1/chat/completions
 
 # Monitoring Settings
-PROMETHEUS_PORT=2112
-GRAFANA_ADMIN_PASSWORD=your_grafana_password
-
-# Optional Settings
-API_PORT=8080                     # Default: 8080
-SCRAPING_INTERVAL="0 */6 * * *"  # Default: every 6 hours
-LOG_LEVEL=info                    # Default: info
+GRAFANA_ADMIN_PASSWORD=admin
 ```
 
-4. Configure application settings in `config.yaml`:
+4. Configure application settings if required in `config.yaml`:
 ```yaml
 api:
-  port: ${API_PORT}
-  rate_limit: 100    # requests per minute
-  timeout: 30s       # global request timeout
+  port: 8080  # Default port, overwritten by env var
 
 mongodb:
   uri: ${MONGODB_URI}
   database: ${MONGODB_DATABASE}
-  max_connections: 100
-  timeout: 10s
 
 scrapers:
   jobsch:
-    base_url: https://api.jobs.ch/v1
-    schedule: ${SCRAPING_INTERVAL}
-    default_pages: 5
-    timeout: 15s
+    base_url: https://www.jobs.ch/api/v1
+    api_key: ${SCRAPER_JOBSCH_API_KEY}
+    default_pages: 5         # Default # of pages for the scheduler
+    max_pages: 20            # No. of jobs per page
+    schedule: "0 */6 * * *"  # Cron expression for every 6 hours
+
+logging:
+  level: "info"
+  file: "logs/job_scraper.log"
+
+prometheus:
+  port: 2112
+
+openai:
+  api_key: ${OPENAI_API_KEY}
+  api_url: ${OPENAI_API_URL}
+  model: gpt-4o-mini
+  timeout: 300s
+  temperature: 1
+  max_tokens: 500
+  top_p: 1
+  frequency_penalty: 0
+  presence_penalty: 0
 ```
 
-### Deployment Options
+### Deployment and Local exectuion Options
 
 #### Local Development
 1. Install dependencies:
@@ -199,7 +220,7 @@ make deps
 
 2. Start required services:
 ```bash
-docker-compose up -d mongodb prometheus grafana
+docker compose up -d mongodb prometheus grafana
 ```
 
 3. Build and run the application:
@@ -208,10 +229,17 @@ make build
 ./dist/job-scraper
 ```
 
+#### Starting/Running Locally
+1. cd into `go-job-scraper`
+2. Start the application by executing `go run ./cmd/scraper/main.go`
+3. Trigger the scrape process: `curl -X POST "http://localhost:8080/api/v1/scrape/jobsch?pages=2"`
+   1. Adjust the number of considered pages to your needs. Notice, you need to have a ChatGPT API Key in place.
+   2. One page on jobsch contains 20 Jobs, so 2 pages as set here will contain 40 jobs that will be processed by ChatGPT
+
 #### Docker Deployment
 Start the complete application stack:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 This includes:
@@ -221,22 +249,33 @@ This includes:
 - Grafana dashboards
 
 #### Kubernetes Deployment
-1. Update Kubernetes manifests with your configuration:
+1. Create the namespace:
 ```bash
-# Review and modify deployments/kubernetes/* files
-# Update image tags, environment variables, and resource limits as needed
+kubectl create namespace job-scraper
 ```
 
-2. Deploy to your cluster:
+2. Create the secrets (replace values with your encoded secrets):
 ```bash
-kubectl apply -f deployments/kubernetes/
+kubectl create -f deployments/kubernetes/secrets.yaml
 ```
 
-3. Verify the deployment:
+3. Deploy using kustomize:
 ```bash
-kubectl get pods
-kubectl get services
+kubectl apply -k deployments/kubernetes/
 ```
+
+4. Verify the deployment:
+```bash
+kubectl -n job-scraper get pods
+kubectl -n job-scraper get services
+kubectl -n job-scraper get ingress
+```
+
+Note: Before deploying, make sure to:
+- Replace `your-registry` with your actual container registry
+- Update the host in the Ingress configuration
+- Set your actual secrets in `secrets.yaml`
+- Adjust resource limits based on your needs
 
 #### Service Access
 After successful deployment, access services at:
@@ -269,6 +308,9 @@ curl -X POST http://localhost:8080/api/v1/scrape/jobsch
 
 # Check scraper status
 curl http://localhost:8080/api/v1/scrapers/status
+
+# Get specific job by ID
+curl http://localhost:8080/api/v1/jobs/{id}
 ```
 
 #### Data Access
@@ -338,14 +380,25 @@ scrape_configs:
 #### Setting up the Grafana API Key to Set Up the Data Sources
 Before using the automation scripts, you need to create a Grafana API key:
 
-1. Go to Configuration > API Keys
-2. Click "Add API key"
-3. Name: `job-scraper-admin`
+1. Go to Administration > Users and access > Service accounts
+2. Click "Add service account"
+3. Display name *: `job-scraper-admin`
 4. Role: `Admin`
-5. Click "Add"
-6. **Important**: Save the generated API key securely, you will need it for the datasource setup script
+5. Click "Create"
+6. Click "Add service account token"
+7. Add Display name *: `job-scraper-admin`
+8. Choose the Expiration as you like
+9. Click "Generate token"
+10. Copy the token by clicking: "Copy to clipboard and close"
+11. **Important**: Save the generated API key securely, you will need it for the datasource setup script
 
-#### Automated Setup using Scripts
+#### Installing the JSON API Connection to Grafana
+1. Go to Connections > Add new connection
+2. Search for `json api`
+3. Choose `JSON API` result
+4. Install
+
+#### Automated Datasource Setup using Scripts
 
 The project includes an automation script to set up all required datasources:
 
@@ -355,6 +408,7 @@ chmod +x scripts/manage_grafana_v1_datasources.sh
 
 # Run the script (you will be prompted for your Grafana API key)
 ./scripts/manage_grafana_v1_datasources.sh
+# Choose option 1 when prompted to create all datasources
 ```
 
 This script will create all necessary datasources including:
@@ -367,7 +421,7 @@ This script will create all necessary datasources including:
 
 The project includes a pre-configured dashboard for job scraping analytics:
 
-1. Go to Dashboards > Import
+1. Go to Dashboards > New > Import
 2. Click "Upload JSON file"
 3. Select `configs/dashboards/job_scaper_dashboard.json`
 4. Click "Import"
@@ -378,6 +432,8 @@ The dashboard includes:
 - Geographical insights
 - Salary trends
 - Processing metrics
+
+> Note: Your scraping application must be running as it exposes the necessary REST endpoints. Also you need scraped data to be available in your MongoDB in order to visualize anything in grafana
 
 #### Additional Data Sources (Optional)
 
@@ -404,40 +460,36 @@ If you need to reset or recreate the datasources, you can use the script with th
 # Choose option 2 when prompted to delete all datasources
 ```
 
-#### Creating Custom Dashboards (Prometheus Example)
-
-Example PromQL queries for custom dashboards:
-
-1. Scraping Success Rate:
-```promql
-rate(jobscraper_scraper_jobs_total{status="success"}[5m])
-```
-
-2. Average Processing Time:
-```promql
-rate(jobscraper_processor_operation_duration_seconds_sum[5m])
-/
-rate(jobscraper_processor_operation_duration_seconds_count[5m])
-```
-
-3. Error Rate by Scraper:
-```promql
-rate(jobscraper_scraper_errors_total[5m])
-```
-
 ### Troubleshooting
 
 Common issues and solutions:
 
 1. Metrics not showing up:
-   - Check if the application is exposing metrics on port 2112
+   - Check if the application is exposing metrics on port 2112 for Prometheus or 8080 for API access, example: 
+      ```bash
+      curl http://localhost:8080/api/v1/stats/job-categories-counts
+      ```
    - Verify Prometheus target is reachable
    - Check for any firewall issues
 
 2. Grafana connection issues:
-   - Verify Prometheus data source configuration
+   - Verify Prometheus data source configuration (according Prometheus datasource needs to be configured) and the Datasource connection URL needs to be: `http://host.docker.internal:<port>` in case you run it locally in Docker
    - Check network connectivity between containers
    - Validate authentication settings
+   - MongoDB must be up and running and should contain Documents (scraped job data) in database `jobsdb` that hold the collection `jobs`
+     - You can utilize a tool such as `MongoDB Compass` to inspect the database
+     
+     - Checking MongoDB connection with mongosh:
+      ```bash
+      # Using mongosh
+      mongosh "mongodb://localhost:27017/jobsdb"
+
+      # Check collections
+      show collections
+
+      # Check job data
+      db.jobs.findOne()
+      ```
 
 3. Missing data points:
    - Check scrape interval configuration
@@ -556,6 +608,15 @@ make cover
 - Write tests for new functionality
 - Update documentation as needed
 - Add appropriate logging and metrics
+
+### Security Considerations
+- All API keys and sensitive data should be stored securely
+- The application doesn't implement authentication by default
+- For production deployments, consider adding:
+  - API authentication
+  - HTTPS/TLS
+  - Network policies in Kubernetes
+  - Rate limiting
 
 ## License
 

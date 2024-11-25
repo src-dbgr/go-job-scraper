@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  MONGODB_DATABASE: "jobsdb"
+  OPENAI_API_URL: "https://api.openai.com/v1/chat/completions"
+  API_PORT: "8080"
+  PROMETHEUS_PORT: "2112"
+  JOBSCRAPER_IN_CONTAINER: "true"
+  JOBSCRAPER_PROMPT_PATH: "/app/prompts"
+  JOBSCRAPER_CONFIG_PATH: "/app/configs"

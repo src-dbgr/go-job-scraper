@@ -14,11 +14,20 @@ FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
-WORKDIR /root/
+# Set env vars for the prompt path
+ENV JOBSCRAPER_PROMPT_PATH=/app/prompts
+ENV JOBSCRAPER_CONFIG_PATH=/app/configs
+
+WORKDIR /app
 
 COPY --from=builder /app/job-scraper .
-COPY configs/config.yaml ./configs/
+COPY --from=builder /app/configs/ ./configs/
+COPY --from=builder /app/prompts/ ./prompts/
 
+# Prometheus port
 EXPOSE 2112
+
+# Actual application port
+EXPOSE 8080
 
 CMD ["./job-scraper"]
