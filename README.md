@@ -41,7 +41,7 @@ The application uses by default the OpenAI ChatGPT API (or any other LLM Service
       - [Automated Datasource Setup using Scripts](#automated-datasource-setup-using-scripts)
       - [Importing the Dashboard](#importing-the-dashboard)
       - [Additional Data Sources (Optional)](#additional-data-sources-optional)
-      - [Dashboard Maintenance](#dashboard-maintenance)
+      - [Grafana Dashboard Maintenance](#grafana-dashboard-maintenance)
     - [Troubleshooting](#troubleshooting)
   - [Extending the Application](#extending-the-application)
     - [Adding a New Scraper](#adding-a-new-scraper)
@@ -563,16 +563,13 @@ DBConnectionsActive // Number of active database connections
 
 ### Prometheus Configuration
 
-The application uses the following Prometheus config (prometheus.yml):
-```yaml
-global:
-  scrape_interval: 15s
+The application uses the following Prometheus config (prometheus.yml) for the K8s deployment:
+1. Access Prometheus GUI at http://localhost:9090
+2. Retrieve the Prometheus metrics
 
-scrape_configs:
-  - job_name: 'job-scraper'
-    static_configs:
-      - targets: ['host.docker.internal:2112']
-```
+    ```bash
+    curl http://localhost:2112/metrics
+    ```
 
 ### Grafana Setup and Usage
 
@@ -580,7 +577,7 @@ scrape_configs:
 1. Access Grafana at http://localhost:3000
 2. Login with default credentials:
    - Username: `admin`
-   - Password: Value from `GRAFANA_ADMIN_PASSWORD` in your `.env`
+   - Password: Value from `GRAFANA_ADMIN_PASSWORD` in your `.env`, default PW `admin`
 
 #### Setting up the Grafana API Key to Set Up the Data Sources
 Before using the automation scripts, you need to create a Grafana API key:
@@ -651,7 +648,7 @@ While the main dashboard uses the JSON API datasources, you can optionally add P
 
 This allows monitoring of system-level metrics like scraping performance and API response times alongside the job market analytics.
 
-#### Dashboard Maintenance
+#### Grafana Dashboard Maintenance
 
 Check the dashboard's health:
 1. Verify all panels are loading data correctly
