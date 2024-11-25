@@ -4,9 +4,10 @@ kind: Kustomization
 resources:
 - secrets.yaml
 - configmap.yaml
-- deployment.yaml
-- services.yaml
-- ingress.yaml
 - config-files.yaml
+- mongodb.yaml
+- prometheus.yaml
+- service.yaml
+- deployment.yaml
 
 namespace: job-scraper

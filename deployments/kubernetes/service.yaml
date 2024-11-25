@@ -19,7 +19,6 @@ metadata:
   name: job-scraper-metrics
   labels:
     app: job-scraper
-    prometheus: "true"
 spec:
   selector:
     app: job-scraper

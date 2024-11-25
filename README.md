@@ -18,9 +18,9 @@ The application uses by default the OpenAI ChatGPT API (or any other LLM Service
     - [Environment Setup](#environment-setup)
     - [Deployment and Local exectuion Options](#deployment-and-local-exectuion-options)
       - [Local Development](#local-development)
-      - [Starting/Running Locally](#startingrunning-locally)
+      - [Starting / Running Locally](#starting--running-locally)
       - [Docker Deployment](#docker-deployment)
-      - [Kubernetes Deployment](#kubernetes-deployment)
+      - [Kubernetes Deployment (Minikube and MacOS)](#kubernetes-deployment-minikube-and-macos)
       - [Service Access](#service-access)
     - [Verification](#verification)
   - [Usage](#usage)
@@ -136,7 +136,7 @@ The application follows a modular, layered architecture:
 - Docker and Docker Compose
 - MongoDB 6.0+
 - OpenAI API key
-- Kubernetes (for production deployment)
+- Kubernetes (If you want a production deployment, or Minikube for local testing in K8s)
 
 ### Environment Setup
 
@@ -167,7 +167,7 @@ Example
 # Core Settings
 MONGODB_URI=mongodb://mongodb:27017
 MONGODB_DATABASE=jobsdb
-OPENAI_API_KEY=some-dummy-key
+OPENAI_API_KEY=<your-openai-api-key>
 OPENAI_API_URL=https://api.openai.com/v1/chat/completions
 
 # Monitoring Settings
@@ -226,10 +226,10 @@ docker compose up -d mongodb prometheus grafana
 3. Build and run the application:
 ```bash
 make build
-./dist/job-scraper
+./dist/job-scraper # runs the application
 ```
 
-#### Starting/Running Locally
+#### Starting / Running Locally
 1. cd into `go-job-scraper`
 2. Start the application by executing `go run ./cmd/scraper/main.go`
 3. Trigger the scrape process: `curl -X POST "http://localhost:8080/api/v1/scrape/jobsch?pages=2"`
@@ -248,31 +248,207 @@ This includes:
 - Prometheus monitoring
 - Grafana dashboards
 
-#### Kubernetes Deployment
-1. Create the namespace:
-```bash
-kubectl create namespace job-scraper
-```
+#### Kubernetes Deployment (Minikube and MacOS)
 
-2. Create the secrets (replace values with your encoded secrets):
-```bash
-kubectl create -f deployments/kubernetes/secrets.yaml
-```
+1. **Install `kubectl`**:
 
-3. Deploy using kustomize:
-```bash
-kubectl apply -k deployments/kubernetes/
-```
+   ```bash
+   brew install kubectl
+   ```
 
-4. Verify the deployment:
-```bash
-kubectl -n job-scraper get pods
-kubectl -n job-scraper get services
-kubectl -n job-scraper get ingress
-```
+2. **Install Minikube**:
 
-Note: Before deploying, make sure to:
-- Replace `your-registry` with your actual container registry
+   ```bash
+   brew install minikube
+   ```
+
+3. **Start Minikube**:
+
+   ```bash
+   minikube start
+   ```
+
+4. **Navigate to the project directory**:
+
+   ```bash
+   cd <your-path>/go-job-scraper
+   ```
+
+5. **Build the Docker image**:
+
+   ```bash
+   docker build -t job-scraper:latest .
+   ```
+
+6. **Load the Docker image into Minikube**:
+
+   ```bash
+   minikube image load job-scraper:latest
+   ```
+
+7. **Create a new Kubernetes namespace**:
+
+   ```bash
+   kubectl create namespace job-scraper
+   ```
+
+8. **Apply the Kubernetes configurations**:
+
+   ```bash
+   kubectl apply -k deployments/kubernetes/
+   ```
+
+9. **Check Pod status** (repeat until all pods are in the "Running" state):
+
+   ```bash
+   kubectl get pods -n job-scraper
+   ```
+
+   Expected output:
+
+   ```bash
+   NAME                           READY   STATUS    RESTARTS   AGE
+   job-scraper-59db9bd6cb-wtr2m   1/1     Running   0          43s
+   mongodb-0                      1/1     Running   0          43s
+   mongodb-1                      1/1     Running   0          30s
+   mongodb-2                      1/1     Running   0          28s
+   prometheus-0                   1/1     Running   0          43s
+   ```
+
+10. **Port-forward services**:
+
+    - **Prometheus** (in a new terminal, keep this terminal open):
+
+      ```bash
+      kubectl port-forward svc/prometheus -n job-scraper 9090:9090
+      ```
+
+    - **Job Scraper API** (in a new terminal, keep this terminal open):
+
+      ```bash
+      kubectl port-forward svc/job-scraper-api -n job-scraper 8080:8080
+      ```
+
+    - **Prometheus Metrics** (in a new terminal, keep this terminal open):
+
+      ```bash
+      kubectl port-forward svc/job-scraper-api -n job-scraper 2112:2112
+      ```
+
+11. **Verify the application is running**:
+
+    - **Check application health**:
+
+      ```bash
+      curl http://localhost:8080/health
+      ```
+
+      Expected result:
+
+      ```bash
+      {"status":"healthy"}
+      ```
+
+    - **Check jobs in the database** (should be empty initially):
+
+      ```bash
+      curl http://localhost:8080/api/v1/jobs
+      ```
+
+      Expected result:
+
+      ```bash
+      null
+      ```
+
+12. **Start a scraping job**:
+
+    ```bash
+    curl -X POST "http://localhost:8080/api/v1/scrape/jobsch?pages=1"
+    ```
+
+    Expected result:
+
+    ```bash
+    {"message":"Scraping job started","pages":"1","scraper":"jobsch"}
+    ```
+
+13. **Inspect application logs**:
+
+    ```bash
+    kubectl logs -f deployment/job-scraper -n job-scraper
+    ```
+
+    Expected output:
+
+    ```bash
+    # Something like this
+    {"level":"warn","error":"open .env: no such file or directory","time":"2024-11-25T16:10:30Z","message":"Error loading .env file"}
+    {"level":"info","time":"2024-11-25T16:10:30Z","message":"Application initialized, starting..."}
+    {"level":"info","time":"2024-11-25T16:10:30Z","message":"Application started successfully"}
+    {"level":"info","time":"2024-11-25T16:10:30Z","message":"Starting application..."}
+    {"level":"info","address":":8080","time":"2024-11-25T16:10:30Z","message":"Starting API server"}
+    {"level":"info","port":2112,"time":"2024-11-25T16:10:30Z","message":"Starting Prometheus metrics server"}
+    {"level":"info","time":"2024-11-25T16:10:30Z","message":"Starting Prometheus metrics server on :2112"}
+    {"level":"info","scraper":"jobsch","pages":1,"time":"2024-11-25T16:21:36Z","message":"Starting scraper"}
+    {"level":"info","page":1,"pageSize":20,"url":"https://www.jobs.ch/api/v1/public/search?page=1&query=software&rows=20","time":"2024-11-25T16:21:36Z","message":"Scraping jobs.ch page"}
+    {"level":"info","job_title":"System Engineer Junior/Senior","extracted_skills":[],"time":"2024-11-25T16:21:42Z","message":"Processed job with OpenAI"}
+    {"level":"info","job_url":"https://www.jobs.ch/api/v1/public/search/job/3b711e5a-f0e6-40b8-a8c8-df1c5bea1458","job_title":"System Engineer Junior/Senior","time":"2024-11-25T16:21:42Z","message":"Successfully processed and saved job"}
+    {"level":"info","job_title":"Applikations-SupporterIn","extracted_skills":[],"time":"2024-11-25T16:21:51Z","message":"Processed job with OpenAI"}
+    {"level":"info","job_url":"https://www.jobs.ch/api/v1/public/search/job/9fa18efa-f0b1-4632-ac72-4c9fc7773551","job_title":"Applikations-SupporterIn","time":"2024-11-25T16:21:51Z","message":"Successfully processed and saved job"}
+    ...
+    ```
+
+14. **Inspect Prometheus metrics**:
+
+    ```bash
+    curl http://localhost:2112/metrics
+    ```
+
+    Expected output:
+
+    ```bash
+    # HELP go_gc_duration_seconds A summary of the wall-time pause (stop-the-world) duration in garbage collection cycles.
+    # TYPE go_gc_duration_seconds summary
+    go_gc_duration_seconds{quantile="0"} 4.6666e-05
+    go_gc_duration_seconds{quantile="0.25"} 9.4958e-05
+    ...
+    jobscraper_http_request_duration_seconds_bucket{handler="/api/v1/scrape/{scraper}",method="POST",status="202",le="1"} 1
+    ...
+    jobscraper_storage_operation_duration_seconds_bucket{operation="save_job",status="success",le="10"} 20
+    ...
+    promhttp_metric_handler_requests_total{code="200"} 61
+    promhttp_metric_handler_requests_total{code="500"} 0
+    promhttp_metric_handler_requests_total{code="503"} 0
+    # HELP total_jobs Total number of jobs
+    # TYPE total_jobs gauge
+    total_jobs 20
+    ```
+
+15. **Open the Prometheus GUI**:
+
+    ```bash
+    open http://localhost:9090
+    ```
+
+    The Prometheus GUI should open in your browser.
+
+16. **Delete the setup if required (WARNING: This will delete all data)**:
+
+    - **Delete the namespace**:
+
+      ```bash
+      kubectl delete namespace job-scraper
+      ```
+
+    - **Delete Minikube cluster**:
+
+      ```bash
+      minikube delete
+      ```
+
+**Note**: Before deploying, make sure to:
+- Replace the registry with your actual container registry
 - Update the host in the Ingress configuration
 - Set your actual secrets in `secrets.yaml`
 - Adjust resource limits based on your needs

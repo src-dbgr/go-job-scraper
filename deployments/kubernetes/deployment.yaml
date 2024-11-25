@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: job-scraper
+  namespace: job-scraper
   labels:
     app: job-scraper
 spec:
@@ -19,8 +20,8 @@ spec:
     spec:
       containers:
       - name: job-scraper
-        image: your-registry/job-scraper:latest
-        imagePullPolicy: Always
+        image: job-scraper:latest
+        imagePullPolicy: Never
         ports:
         - name: http
           containerPort: 8080
@@ -30,8 +31,8 @@ spec:
         - name: MONGODB_URI
           valueFrom:
             secretKeyRef:
-              name: app-secrets
-              key: MONGODB_URI
+              name: mongodb-secrets
+              key: CONNECTION_STRING
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
